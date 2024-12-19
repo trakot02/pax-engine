@@ -17,9 +17,9 @@ Main_Scene :: struct
 
     keyboard: pax.Keyboard,
 
-    image_reader: pax.Image_Reader,
-    sheet_reader: pax.Image_Sheet_Reader,
-    grid_reader:  pax.Grid_Reader,
+    image_reader:  pax.Image_Reader,
+    sprite_reader: pax.Sprite_Reader,
+    grid_reader:   pax.Grid_Reader,
 
     world:        pax.World,
     player_group: pax.Group(Player),
@@ -76,9 +76,9 @@ main_scene_start :: proc(self: ^Main_Scene, stage: ^Game_Stage) -> bool
         return false
     }
 
-    self.image_reader.renderer  = self.render.renderer
-    self.sheet_reader.allocator = context.allocator
-    self.grid_reader.allocator  = context.allocator
+    self.image_reader.renderer   = self.render.renderer
+    self.sprite_reader.allocator = context.allocator
+    self.grid_reader.allocator   = context.allocator
 
     pax.signal_insert(&self.keyboard.key_release, self,         main_scene_on_key_release)
     pax.signal_insert(&self.keyboard.key_release, player,       player_on_key_release)
@@ -108,8 +108,8 @@ main_scene_load :: proc(self: ^Main_Scene) -> bool
     }
 
     sheets := [?]string {
-        "data/main_scene/sheet/tiles.json",
-        "data/main_scene/sheet/chars.json",
+        "data/main_scene/sprite/tiles.json",
+        "data/main_scene/sprite/chars.json",
     }
 
     grids := [?]string {
@@ -132,11 +132,11 @@ main_scene_load :: proc(self: ^Main_Scene) -> bool
     }
 
     for name in sheets {
-        sheet, succ := pax.image_sheet_read(&self.sheet_reader, name)
+        sheet, succ := pax.sprite_read(&self.sprite_reader, name)
 
         if succ == false { return false }
 
-        _, error := append(&self.render.sheets, sheet)
+        _, error := append(&self.render.sprites, sheet)
 
         if error != nil {
             log.errorf("Unable to load image %q\n", name)
@@ -161,17 +161,19 @@ main_scene_load :: proc(self: ^Main_Scene) -> bool
 
     player := pax.group_find(&self.player_group, self.player)
 
-    player.sprite.sheet = 1
-    player.sprite.frame = 4
-    player.sprite.point = {32, 32}
-    player.motion.point = {32, 32}
+    player.visible.sprite = 1
+    player.visible.chain  = 4
+
+    player.transform.point = {48, 48}
+
+    player.motion.point = {48, 48}
     player.motion.speed = 128
     player.camera       = &self.camera
 
     grid := pax.grid_find(&self.grid, player.motion.grid)
 
     value := pax.grid_find_value(grid, 0, 3,
-        pax.point_to_cell(grid, player.sprite.point))
+        pax.point_to_cell(grid, player.transform.point))
 
     if value == nil { return false }
 
@@ -219,15 +221,17 @@ main_scene_step :: proc(self: ^Main_Scene, delta: f32)
 
         angle := controls_angle(&player.controls)
 
+        pax.render_stop_chain(&self.render, player.visible, true)
+
         switch angle {
-            case { 0, -1}: player.sprite.frame = 0
-            case { 1, -1}: player.sprite.frame = 1
-            case { 1,  0}: player.sprite.frame = 2
-            case { 1,  1}: player.sprite.frame = 3
-            case { 0,  1}: player.sprite.frame = 4
-            case {-1,  1}: player.sprite.frame = 5
-            case {-1,  0}: player.sprite.frame = 6
-            case {-1, -1}: player.sprite.frame = 7
+            case { 0, -1}: player.visible.chain = 8
+            case { 1, -1}: player.visible.chain = 9
+            case { 1,  0}: player.visible.chain = 10
+            case { 1,  1}: player.visible.chain = 11
+            case { 0,  1}: player.visible.chain = 12
+            case {-1,  1}: player.visible.chain = 13
+            case {-1,  0}: player.visible.chain = 14
+            case {-1, -1}: player.visible.chain = 15
         }
 
         grid := pax.grid_find(&self.grid, player.motion.grid)
@@ -244,16 +248,22 @@ main_scene_step :: proc(self: ^Main_Scene, delta: f32)
 
         if motion_step(&player.motion, &self.grid, angle, delta) {
             motion_grid(&player.motion, &self.grid, angle, 0, 3)
+
+            pax.render_stop_chain(&self.render, player.visible, false)
         }
 
-        player.sprite.point = {
+        player.transform.point = {
             int(player.motion.point.x),
             int(player.motion.point.y),
         }
 
         if player.camera != nil {
-            player.camera.follow = player.sprite.point
+            player.camera.follow = player.transform.point
         }
+
+        player.visible.timer += delta
+
+        pax.render_update_chain(&self.render, &player.visible)
     }
 }
 
@@ -267,13 +277,16 @@ main_scene_draw_sprite_layer :: proc(self: ^Main_Scene, layer: int, cell: [2]int
 
     if value == nil { return }
 
-    sprite := pax.Sprite {
-        sheet = 0,
-        frame = value^,
+    visibl := pax.Visible {
+        sprite = 0,
+        frame  = value^,
+    }
+
+    transf := pax.Transform {
         point = point,
     }
 
-    pax.render_draw_sprite(&self.render, sprite)
+    pax.render_draw_sprite_frame(&self.render, visibl, transf)
 }
 
 main_scene_draw_player_layer :: proc(self: ^Main_Scene, layer: int, cell: [2]int)
@@ -289,7 +302,7 @@ main_scene_draw_player_layer :: proc(self: ^Main_Scene, layer: int, cell: [2]int
     player := pax.group_find(&self.player_group, value^)
 
     if player != nil {
-        pax.render_draw_sprite(&self.render, player.sprite)
+        pax.render_draw_sprite_chain(&self.render, player.visible, player.transform)
     }
 }
 

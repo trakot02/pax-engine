@@ -26,9 +26,7 @@ window_init :: proc(self: ^Window, title: string, size: [2]int, allocator := con
 
     flags := sdl.WindowFlags {.HIDDEN}
 
-    self.raw = sdl.CreateWindow(cstr,
-        sdl.WINDOWPOS_CENTERED,
-        sdl.WINDOWPOS_CENTERED,
+    self.raw = sdl.CreateWindow(cstr, 100, 100,
         i32(size.x), i32(size.y), flags)
 
     mem.delete(cstr, temp)
