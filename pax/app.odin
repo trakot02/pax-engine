@@ -94,11 +94,11 @@ app_loop :: proc(self: ^App, stage: Stage, config: App_Config) -> bool
 {
     count := len(self.scenes)
 
-    if config.first_scene < 0 || config.first_scene >= count {
+    if config.first_scene <= 0 || config.first_scene > count {
         return false
     }
 
-    scene := &self.scenes[config.first_scene]
+    scene := &self.scenes[config.first_scene - 1]
 
     frame_rate : i64 = i64(config.frame_rate)
     frame_skip : i64 = i64(config.frame_skip)
@@ -130,7 +130,7 @@ app_loop :: proc(self: ^App, stage: Stage, config: App_Config) -> bool
 
         if value < 0 { break }
 
-        if 0 < value && value <= count {
+        if 0 <= index && index < count {
             scene_leave(scene)
 
             scene = &self.scenes[index]

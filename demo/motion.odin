@@ -19,9 +19,11 @@ Motion :: struct
     state:  Motion_State,
 }
 
-motion_step :: proc(self: ^Motion, grid: ^pax.Grid_State, step: [2]int, delta: f32) -> bool
+motion_step :: proc(self: ^Motion, registry: ^pax.Registry(pax.Grid), step: [2]int, delta: f32) -> bool
 {
-    active := pax.grid_find(grid, self.grid)
+    active, _ := pax.registry_find(registry, self.grid)
+
+    if active == nil { return false }
 
     switch self.state {
         case .STILL: {
@@ -61,28 +63,27 @@ motion_step :: proc(self: ^Motion, grid: ^pax.Grid_State, step: [2]int, delta: f
     return false
 }
 
-motion_test :: proc(self: ^Motion, grid: ^pax.Grid_State, step: [2]int, stack: int, layer: int) -> [2]int
+motion_test :: proc(self: ^Motion, registry: ^pax.Registry(pax.Grid), step: [2]int, stack: int, layer: int) -> [2]int
 {
-    active := pax.grid_find(grid, self.grid)
-    step   := step
+    active, _ := pax.registry_find(registry, self.grid)
+    step      := step
 
-    cell := pax.point_to_cell(active, [2]int {
-        int(self.point.x), int(self.point.y),
-    })
+    if active == nil || (step.x == 0 && step.y == 0 ) {
+        return step
+    }
+
+    cell      := pax.point_to_cell(active, self.point)
+    next_x, _ := pax.grid_find_value(active, stack, layer, [2]int {cell.x + step.x, cell.y})
+    next_y, _ := pax.grid_find_value(active, stack, layer, [2]int {cell.x, cell.y + step.y})
+
+    if next_x == nil || next_x^ > 0 { step.x = 0 }
+    if next_y == nil || next_y^ > 0 { step.y = 0 }
 
     if step.x == 0 && step.y == 0 { return step }
 
-    next_x := pax.grid_find_value(active, stack, layer, [2]int {cell.x + step.x, cell.y})
-    next_y := pax.grid_find_value(active, stack, layer, [2]int {cell.x, cell.y + step.y})
+    next, _ := pax.grid_find_value(active, stack, layer, cell + step)
 
-    if next_x == nil || next_x^ >= 0 { step.x = 0 }
-    if next_y == nil || next_y^ >= 0 { step.y = 0 }
-
-    if step.x == 0 && step.y == 0 { return step }
-
-    next := pax.grid_find_value(active, stack, layer, cell + step)
-
-    if next == nil || next^ >= 0 {
+    if next == nil || next^ > 0 {
         step.x = 0
         step.y = 0
     }
@@ -90,33 +91,32 @@ motion_test :: proc(self: ^Motion, grid: ^pax.Grid_State, step: [2]int, stack: i
     return step
 }
 
-motion_grid :: proc(self: ^Motion, grid: ^pax.Grid_State, step: [2]int, stack: int, layer: int)
+motion_grid :: proc(self: ^Motion, registry: ^pax.Registry(pax.Grid), step: [2]int, stack: int, layer: int)
 {
-    active := pax.grid_find(grid, self.grid)
+    active, _ := pax.registry_find(registry, self.grid)
 
-    cell := pax.point_to_cell(active, [2]int {
-        int(self.point.x), int(self.point.y)
-    })
+    if active == nil { return }
 
-    curr := pax.grid_find_value(active, stack, layer, cell)
-    next := pax.grid_find_value(active, stack, layer, cell + step)
+    cell    := pax.point_to_cell(active, self.point)
+    curr, _ := pax.grid_find_value(active, stack, layer, cell)
+    next, _ := pax.grid_find_value(active, stack, layer, cell + step)
 
     if curr != nil && next != nil {
         next^ = curr^
-        curr^ = -1
+        curr^ = 0
     }
 }
 
-motion_gate :: proc(self: ^Motion, grid: ^pax.Grid_State, stack: int, layer: int) -> ^pax.Grid_Gate
+motion_gate :: proc(self: ^Motion, registry: ^pax.Registry(pax.Grid), stack: int, layer: int) -> ^pax.Grid_Gate
 {
-    active := pax.grid_find(grid, self.grid)
-    cell   := pax.point_to_cell(active, [2]int {
-        int(self.point.x), int(self.point.y),
-    })
+    active, _ := pax.registry_find(registry, self.grid)
 
-    curr := pax.grid_find_value(active, stack, layer, cell)
+    if active == nil { return nil }
 
-    if curr != nil && curr^ >= 0 {
+    cell    := pax.point_to_cell(active, self.point)
+    curr, _ := pax.grid_find_value(active, stack, layer, cell)
+
+    if curr != nil && curr^ > 0 {
         if curr^ < len(active.gates) {
             return &active.gates[curr^]
         }
@@ -125,19 +125,16 @@ motion_gate :: proc(self: ^Motion, grid: ^pax.Grid_State, stack: int, layer: int
     return nil
 }
 
-motion_change :: proc(self: ^Motion, grid: ^pax.Grid_State, stack: int, layer: int, gate: pax.Grid_Gate)
+motion_change :: proc(self: ^Motion, registry: ^pax.Registry(pax.Grid), stack: int, layer: int, gate: pax.Grid_Gate)
 {
-    active := pax.grid_find(grid, self.grid)
-    dest   := pax.grid_find(grid, gate.grid)
+    active, _ := pax.registry_find(registry, self.grid)
+    dest, _   := pax.registry_find(registry, gate.grid)
 
-    if self.state != .STILL { return }
+    if active == nil || dest == nil || self.state != .STILL { return }
 
-    cell := pax.point_to_cell(active, [2]int {
-        int(self.point.x), int(self.point.y),
-    })
-
-    curr := pax.grid_find_value(active, stack, layer, cell)
-    next := pax.grid_find_value(dest,   stack, layer, gate.cell + gate.step)
+    cell    := pax.point_to_cell(active, self.point)
+    curr, _ := pax.grid_find_value(active, stack, layer, cell)
+    next, _ := pax.grid_find_value(dest,   stack, layer, gate.cell + gate.step)
 
     point := pax.cell_to_point(dest, gate.cell)
     step  := pax.cell_to_point(dest, gate.step)
@@ -160,7 +157,7 @@ motion_change :: proc(self: ^Motion, grid: ^pax.Grid_State, stack: int, layer: i
         }
 
         next^ = curr^
-        curr^ = -1
+        curr^ = 0
 
         self.grid = gate.grid
     }

@@ -1,39 +1,56 @@
 package pax
 
+import "core:strings"
 import "core:mem"
 import "core:log"
-import "core:strings"
 
 import sdl  "vendor:sdl2"
 import sdli "vendor:sdl2/image"
 
 Image :: struct
 {
-    data: ^sdl.Texture,
+    //
+    //
+    //
+    data: rawptr,
 }
 
-Image_Reader :: struct
+Image_Context :: struct
 {
-    renderer: ^sdl.Renderer,
+    //
+    //
+    //
+    renderer: rawptr,
 }
 
-image_read :: proc(self: ^Image_Reader, name: string) -> (Image, bool)
+//
+//
+//
+image_clear :: proc(self: ^Image_Context, value: ^Image)
 {
-    temp  := context.temp_allocator
+    sdl.DestroyTexture(auto_cast value.data)
+}
+
+//
+//
+//
+image_read :: proc(self: ^Image_Context, name: string) -> (Image, bool)
+{
+    alloc := context.temp_allocator
     value := Image {}
 
-    cstr, error := strings.clone_to_cstring(name, temp)
+    clone, error := strings.clone_to_cstring(name, alloc)
 
     if error != nil {
-        log.errorf("Unable to open %q for reading\n",
+        log.errorf("Image: Unable to open %q for reading\n",
             name)
 
         return {}, false
     }
 
-    value.data = sdli.LoadTexture(self.renderer, cstr)
+    value.data = sdli.LoadTexture(auto_cast self.renderer, clone)
 
-    mem.free_all(temp)
+    mem.free_all(alloc)
 
     if value.data == nil {
         log.errorf("SDL: %v", sdl.GetErrorString())
@@ -44,7 +61,25 @@ image_read :: proc(self: ^Image_Reader, name: string) -> (Image, bool)
     return value, true
 }
 
-image_clear :: proc(self: ^Image_Reader, value: ^Image)
+//
+// todo (trakot02): In the future.
+//
+// image_write :: proc(self: ^Image_Context, name: string, value: ^Image) -> bool
+// {
+//     return false
+// }
+
+//
+//
+//
+image_registry :: proc(self: ^Image_Context) -> Registry(Image)
 {
-    sdl.DestroyTexture(value.data)
+    value := Registry(Image) {}
+
+    value.instance   = auto_cast self
+    value.clear_proc = auto_cast image_clear
+    value.read_proc  = auto_cast image_read
+    // value.write_proc = auto_cast image_write
+
+    return value
 }

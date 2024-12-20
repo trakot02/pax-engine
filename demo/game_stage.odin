@@ -8,7 +8,7 @@ import sdli "vendor:sdl2/image"
 import "../pax"
 
 WINDOW_TITLE :: "Fallen Blood"
-WINDOW_SIZE  :: [2]int {320, 180}
+WINDOW_SIZE  :: [2]f32 {320, 180}
 
 Game_Stage :: struct
 {

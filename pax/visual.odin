@@ -1,19 +1,19 @@
 package pax
 
-Transform :: struct
+Visual :: struct
 {
     //
     //
     //
-    pivot: [2]f32,
+    sprite: int,
 
     //
     //
     //
-    scale: [2]f32,
+    frame: int,
 
     //
     //
     //
-    angle: f32,
+    chain: int,
 }

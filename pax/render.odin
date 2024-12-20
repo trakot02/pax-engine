@@ -1,54 +1,32 @@
 package pax
 
+import "core:log"
+
 import sdl  "vendor:sdl2"
 import sdli "vendor:sdl2/image"
 
 Render_State :: struct
 {
-    renderer: ^sdl.Renderer,
+    renderer: rawptr,
 
-    camera: ^Camera,
-
-    images:  [dynamic]Image,
-    sprites: [dynamic]Sprite,
+    camera:  ^Camera,
+    images:  ^Registry(Image),
+    sprites: ^Registry(Sprite),
 }
 
-render_init :: proc(self: ^Render_State, allocator := context.allocator)
+render_draw_sprite_frame :: proc(self: ^Render_State, visual: Visual, transform: Transform) -> bool
 {
-    self.images  = make([dynamic]Image,  allocator)
-    self.sprites = make([dynamic]Sprite, allocator)
-}
+    sprite := registry_find(self.sprites, visual.sprite) or_return
+    image  := registry_find(self.images,  sprite.image)  or_return
 
-render_destroy :: proc(self: ^Render_State)
-{
-    delete(self.sprites)
-    delete(self.images)
-}
+    frame := sprite_frame(sprite, visual.frame) or_return
 
-render_draw_sprite_frame :: proc(self: ^Render_State, visible: Visible, transform: Transform)
-{
-    if visible.sprite < 0 || visible.sprite >= len(self.sprites) { return }
-
-    sprite := &self.sprites[visible.sprite]
-
-    if sprite == nil { return }
-
-    if visible.frame < 0 || visible.frame >= len(sprite.frames) { return }
-
-    frame := &sprite.frames[visible.frame]
-
-    if frame == nil { return }
-
-    if sprite.image < 0 || sprite.image >= len(self.images) { return }
-
-    image := &self.images[sprite.image]
-
-    displ := [2]int {0, 0}
+    pivot := [2]f32 {0, 0}
     scale := [2]f32 {1, 1}
 
     if self.camera != nil {
-        displ = camera_displ(self.camera) - frame.base
-        scale = camera_scale(self.camera) + transform.scale
+        pivot = camera_pivot(self.camera) - frame.base
+        scale = camera_scale(self.camera) * transform.scale
     }
 
     part := sdl.Rect {
@@ -57,44 +35,41 @@ render_draw_sprite_frame :: proc(self: ^Render_State, visible: Visible, transfor
     }
 
     rect := sdl.Rect {
-        i32(scale.x * f32(transform.point.x + displ.x)),
-        i32(scale.y * f32(transform.point.y + displ.y)),
+        i32(scale.x * f32(transform.pivot.x + pivot.x)),
+        i32(scale.y * f32(transform.pivot.y + pivot.y)),
         i32(scale.x * f32(frame.rect.z)),
         i32(scale.y * f32(frame.rect.w)),
     }
 
-    assert(sdl.RenderCopy(self.renderer, image.data, &part, &rect) == 0,
-        sdl.GetErrorString())
+    copy := sdl.RenderCopy(auto_cast self.renderer, auto_cast image.data,
+        &part, &rect)
+
+    if copy != 0 {
+        log.errorf("SDL: %v\n", sdl.GetErrorString())
+
+        return false
+    }
+
+    return true
 }
 
-render_draw_sprite_chain :: proc(self: ^Render_State, visible: Visible, transform: Transform)
+render_draw_sprite_chain :: proc(self: ^Render_State, visual: Visual, transform: Transform) -> bool
 {
-    if visible.sprite < 0 || visible.sprite >= len(self.sprites) { return }
+    sprite := registry_find(self.sprites, visual.sprite) or_return
+    image  := registry_find(self.images,  sprite.image)  or_return
 
-    sprite := &self.sprites[visible.sprite]
+    chain := sprite_chain(sprite, visual.chain) or_return
 
-    if sprite == nil { return }
+    if chain.frame <= 0 || chain.frame > len(chain.frames) { return false }
 
-    if visible.chain < 0 || visible.chain >= len(sprite.chains) { return }
+    frame := sprite_frame(sprite, chain.frames[chain.frame - 1])  or_return
 
-    chain := &sprite.chains[visible.chain]
-
-    if chain.frame < 0 || chain.frame >= len(sprite.frames) { return }
-
-    frame := &sprite.frames[chain.frames[chain.frame]]
-
-    if frame == nil { return }
-
-    if sprite.image < 0 || sprite.image >= len(self.images) { return }
-
-    image := &self.images[sprite.image]
-
-    displ := [2]int {0, 0}
+    pivot := [2]f32 {0, 0}
     scale := [2]f32 {1, 1}
 
     if self.camera != nil {
-        displ = camera_displ(self.camera) - frame.base
-        scale = camera_scale(self.camera) + transform.scale
+        pivot = camera_pivot(self.camera) - frame.base
+        scale = camera_scale(self.camera) * transform.scale
     }
 
     part := sdl.Rect {
@@ -103,57 +78,49 @@ render_draw_sprite_chain :: proc(self: ^Render_State, visible: Visible, transfor
     }
 
     rect := sdl.Rect {
-        i32(scale.x * f32(transform.point.x + displ.x)),
-        i32(scale.y * f32(transform.point.y + displ.y)),
+        i32(scale.x * f32(transform.pivot.x + pivot.x)),
+        i32(scale.y * f32(transform.pivot.y + pivot.y)),
         i32(scale.x * f32(frame.rect.z)),
         i32(scale.y * f32(frame.rect.w)),
     }
 
-    assert(sdl.RenderCopy(self.renderer, image.data, &part, &rect) == 0,
-        sdl.GetErrorString())
+    copy := sdl.RenderCopy(auto_cast self.renderer, auto_cast image.data,
+        &part, &rect)
+
+    if copy != 0 {
+        log.errorf("SDL: %v\n", sdl.GetErrorString())
+
+        return false
+    }
+
+    return true
 }
 
-render_update_chain :: proc(self: ^Render_State, visible: ^Visible)
+render_update_chain :: proc(self: ^Render_State, visual: Visual, delta: f32) -> bool
 {
-    if visible.sprite < 0 || visible.sprite >= len(self.sprites) { return }
+    sprite := registry_find(self.sprites, visual.sprite) or_return
+    chain  := sprite_chain(sprite, visual.chain)         or_return
 
-    sprite := &self.sprites[visible.sprite]
+    chain.timer += delta
 
-    if sprite == nil { return }
+    if chain.timer >= chain.delay {
+        chain.timer -= chain.delay
 
-    if visible.chain < 0 || visible.chain >= len(sprite.chains) { return }
-
-    chain := &sprite.chains[visible.chain]
-
-    if chain == nil { return }
-
-    if chain.stop == false && visible.timer >= chain.delay {
-        next := chain.frame + 1
-
-        if chain.loop == true {
-            next %= len(chain.frames)
-        }
-
-        if next < len(chain.frames) {
-            chain.frame    = next
-            visible.timer -= chain.delay
+        if chain.stop == false {
+            chain.frame %= len(chain.frames)
+            chain.frame += 1
         }
     }
+
+    return true
 }
 
-render_stop_chain :: proc(self: ^Render_State, visible: Visible, stop: bool)
+render_stop_chain :: proc(self: ^Render_State, visual: Visual, stop: bool) -> bool
 {
-    if visible.sprite < 0 || visible.sprite >= len(self.sprites) { return }
-
-    sprite := &self.sprites[visible.sprite]
-
-    if sprite == nil { return }
-
-    if visible.chain < 0 || visible.chain >= len(sprite.chains) { return }
-
-    chain := &sprite.chains[visible.chain]
-
-    if chain == nil { return }
+    sprite := registry_find(self.sprites, visual.sprite) or_return
+    chain  := sprite_chain(sprite, visual.chain)         or_return
 
     chain.stop = stop
+
+    return true
 }
