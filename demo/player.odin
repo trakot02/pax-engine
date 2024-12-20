@@ -6,10 +6,11 @@ import "../pax"
 
 Player :: struct
 {
-    sprite:   pax.Sprite,
-    camera:   ^pax.Camera,
-    motion:   Motion,
-    controls: Controls,
+    visible:   pax.Visible,
+    transform: pax.Transform,
+    camera:    ^pax.Camera,
+    motion:    Motion,
+    controls:  Controls,
 }
 
 player_on_key_release :: proc(event: sdl.KeyboardEvent, self: ^Player)
