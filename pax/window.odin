@@ -8,57 +8,115 @@ import sdl "vendor:sdl2"
 
 Window :: struct
 {
-    raw: ^sdl.Window,
+    //
+    //
+    //
+    data: rawptr,
 
+    //
+    //
+    //
     close: Signal(Empty_Event),
 }
 
-window_init :: proc(self: ^Window, title: string, size: [2]int, allocator := context.allocator)
+//
+//
+//
+window_init :: proc(self: ^Window, size: [2]f32, allocator := context.allocator) -> bool
 {
-    temp        := context.temp_allocator
-    cstr, error := strings.clone_to_cstring(title, temp)
-
-    if error != nil {
-        log.errorf("Unable to create temporary string\n")
-
-        return
-    }
-
     flags := sdl.WindowFlags {.HIDDEN}
 
-    self.raw = sdl.CreateWindow(cstr, 100, 100,
-        i32(size.x), i32(size.y), flags)
+    self.data = auto_cast sdl.CreateWindow("",
+        128, 128, i32(size.x), i32(size.y), flags)
 
-    mem.delete(cstr, temp)
+    if self.data == nil {
+        log.errorf("SDL: %v", sdl.GetErrorString())
 
-    if self.raw == nil {
-        log.errorf("SDL: %v\n",
-            sdl.GetErrorString())
-
-        return
+        return false
     }
+
+    return true
 }
 
+//
+//
+//
 window_destroy :: proc(self: ^Window)
 {
-    sdl.DestroyWindow(self.raw)
+    sdl.DestroyWindow(auto_cast self.data)
+
+    self.data = nil
 }
 
+//
+//
+//
 window_show :: proc(self: ^Window)
 {
-    sdl.ShowWindow(self.raw)
+    sdl.ShowWindow(auto_cast self.data)
 }
 
+//
+//
+//
 window_hide :: proc(self: ^Window)
 {
-    sdl.HideWindow(self.raw)
+    sdl.HideWindow(auto_cast self.data)
 }
 
-window_resize :: proc(self: ^Window, size: [2]int)
+//
+//
+//
+window_set_title :: proc(self: ^Window, name: string) -> bool
 {
-    sdl.SetWindowSize(self.raw, i32(size.x), i32(size.y))
+    alloc := context.temp_allocator
+
+    clone, error := strings.clone_to_cstring(name, alloc)
+
+    if error != nil {
+        log.errorf("Window: Unable to clone %q to c-string",
+            name)
+
+        return false
+    }
+
+    sdl.SetWindowTitle(auto_cast self.data, clone)
+
+    mem.free_all(alloc)
+
+    return true
 }
 
+//
+//
+//
+window_set_border :: proc(self: ^Window, border: bool)
+{
+    sdl.SetWindowBordered(auto_cast self.data,
+        sdl.bool(border))
+}
+
+//
+//
+//
+window_set_size :: proc(self: ^Window, size: [2]f32)
+{
+    sdl.SetWindowSize(auto_cast self.data,
+        i32(size.x), i32(size.y))
+}
+
+//
+//
+//
+window_set_origin :: proc(self: ^Window, origin: [2]f32)
+{
+    sdl.SetWindowPosition(auto_cast self.data,
+        i32(origin.x), i32(origin.y))
+}
+
+//
+//
+//
 window_emit :: proc(self: ^Window, event: sdl.Event)
 {
     #partial switch event.type {

@@ -5,42 +5,82 @@ import sdli "vendor:sdl2/image"
 
 Camera :: struct
 {
-    follow: [2]int,
-    offset: [2]int,
-    size:   [2]int,
-    scale:  [2]f32,
+    //
+    //
+    //
+    size: [2]f32,
+
+    //
+    //
+    //
+    bounds: [4]f32,
+
+    //
+    //
+    //
+    follow: [2]f32,
+
+    //
+    //
+    //
+    offset: [2]f32,
+
+    //
+    //
+    //
+    scale: [2]f32,
 }
 
-camera_displ :: proc(self: ^Camera) -> [2]int
+//
+//
+//
+camera_move :: proc(self: ^Camera, point: [2]f32)
 {
-    return {
-        self.offset.x - self.follow.x,
-        self.offset.y - self.follow.y,
-    }
+    self := self
+
+    self.follow.x = clamp(point.x,
+        self.bounds.x + self.offset.x,
+        self.bounds.z + self.offset.x - self.size.x)
+
+    self.follow.y = clamp(point.y,
+        self.bounds.y + self.offset.y,
+        self.bounds.w + self.offset.y - self.size.y)
 }
 
+//
+//
+//
+camera_point :: proc(self: ^Camera) -> [2]f32
+{
+    return self.offset - self.follow
+}
+
+//
+//
+//
 camera_scale :: proc(self: ^Camera) -> [2]f32
 {
-    return {self.scale.x, self.scale.y}
+    return self.scale
 }
 
+//
+//
+//
 camera_grid_follow :: proc(self: ^Camera, grid: ^Grid) -> [2]int
 {
     return point_to_cell(grid, self.follow)
 }
 
+//
+//
+//
 camera_grid_area :: proc(self: ^Camera, grid: ^Grid) -> [2][2]int
 {
+    size := point_to_cell(grid, [2]f32 {
+        f32(self.size.x), f32(self.size.y),
+    }) + 1
+
     follow := point_to_cell(grid, self.follow)
-    size   := point_to_cell(grid, self.size) + 1
 
     return {follow - size, follow + size}
-}
-
-camera_on_key_press :: proc(event: sdl.KeyboardEvent, self: ^Camera)
-{
-    #partial switch event.keysym.sym {
-        case .P, .PLUS,  .KP_PLUS:  self.scale += 0.01
-        case .M, .MINUS, .KP_MINUS: self.scale -= 0.01
-    }
 }

@@ -6,74 +6,106 @@ Empty_Event :: struct {}
 
 Listener :: struct
 {
-    instance:  rawptr,
+    //
+    //
+    //
+    instance: rawptr,
+
+    //
+    //
+    //
     proc_call: rawptr,
 }
 
 Signal :: struct ($T: typeid)
 {
-    chain: [dynamic]Listener,
+    //
+    //
+    //
+    values: [dynamic]Listener,
 }
 
+//
+//
+//
 signal_init :: proc(self: ^Signal($T), allocator := context.allocator)
 {
-    self.chain = make([dynamic]Listener, allocator)
+    self.values = make([dynamic]Listener, allocator)
 }
 
+//
+//
+//
 signal_destroy :: proc(self: ^Signal($T))
 {
-    delete(self.chain)
+    delete(self.values)
 }
 
+//
+//
+//
 signal_insert_proc :: proc(self: ^Signal($T), call: proc(T)) -> bool
 {
-    _, error := append(&self.chain, Listener {
+    _, error := append(&self.values, Listener {
         proc_call = auto_cast call,
     })
 
     if error != nil {
-        log.errorf("Unable to connect to a signal\n")
+        log.errorf("Signal(%v): Unable to connect to a signal",
+            typeid_of(T))
     }
 
     return error == nil
 }
 
+//
+//
+//
 signal_insert_proc_empty :: proc(self: ^Signal(Empty_Event), call: proc()) -> bool
 {
-    _, error := append(&self.chain, Listener {
+    _, error := append(&self.values, Listener {
         proc_call = auto_cast call,
     })
 
     if error != nil {
-        log.errorf("Unable to connect to a signal\n")
+        log.errorf("Signal(%v): Unable to connect to a signal",
+            typeid_of(Empty_Event))
     }
 
     return error == nil
 }
 
+//
+//
+//
 signal_insert_pair :: proc(self: ^Signal($T), instance: ^$U, call: proc(T, ^U)) -> bool
 {
-    _, error := append(&self.chain, Listener {
+    _, error := append(&self.values, Listener {
         instance  = auto_cast instance,
         proc_call = auto_cast call,
     })
 
     if error != nil {
-        log.errorf("Unable to connect to a signal\n")
+        log.errorf("Signal(%v): Unable to connect to a signal",
+            typeid_of(T))
     }
 
     return error == nil
 }
 
+//
+//
+//
 signal_insert_pair_empty :: proc(self: ^Signal(Empty_Event), instance: ^$U, call: proc(^U)) -> bool
 {
-    _, error := append(&self.chain, Listener {
+    _, error := append(&self.values, Listener {
         instance  = auto_cast instance,
         proc_call = auto_cast call,
     })
 
     if error != nil {
-        log.errorf("Unable to connect to a signal\n")
+        log.errorf("Signal(%v): Unable to connect to a signal",
+            typeid_of(Empty_Event))
     }
 
     return error == nil
@@ -86,46 +118,58 @@ signal_insert :: proc {
     signal_insert_pair_empty,
 }
 
+//
+//
+//
 signal_remove_proc :: proc(self: ^Signal($T), call: proc(T))
 {
-    for value, index in self.chain {
+    for value, index in self.values {
         if value.proc_call == rawptr(call) {
-            unordered_remove(&self.chain, index)
+            unordered_remove(&self.values, index)
 
             return
         }
     }
 }
 
+//
+//
+//
 signal_remove_proc_empty :: proc(self: ^Signal(Empty_Event), call: proc())
 {
-    for value, index in self.chain {
+    for value, index in self.values {
         if value.proc_call == rawptr(call) {
-            unordered_remove(&self.chain, index)
+            unordered_remove(&self.values, index)
 
             return
         }
     }
 }
 
+//
+//
+//
 signal_remove_pair :: proc(self: ^Signal($T), instance: ^$U, call: proc(T, ^U))
 {
-    for value, index in self.chain {
+    for value, index in self.values {
         if value.proc_call == rawptr(call) &&
            value.instance  == rawptr(instance) {
-            unordered_remove(&self.chain, index)
+            unordered_remove(&self.values, index)
 
             return
         }
     }
 }
 
+//
+//
+//
 signal_remove_pair_empty :: proc(self: ^Signal(Empty_Event), instance: ^$U, call: proc(^U))
 {
-    for value, index in self.chain {
+    for value, index in self.values {
         if value.proc_call == rawptr(call) &&
            value.instance  == rawptr(instance) {
-            unordered_remove(&self.chain, index)
+            unordered_remove(&self.values, index)
 
             return
         }
@@ -139,20 +183,26 @@ signal_remove :: proc {
     signal_remove_pair_empty,
 }
 
+//
+//
+//
 signal_emit_event :: proc(self: ^Signal($T), event: T)
 {
     Type :: proc(T, rawptr)
 
-    for value in self.chain {
+    for value in self.values {
         Type(value.proc_call)(event, value.instance)
     }
 }
 
+//
+//
+//
 signal_emit_empty :: proc(self: ^Signal(Empty_Event))
 {
     Type :: proc(rawptr)
 
-    for value in self.chain {
+    for value in self.values {
         Type(value.proc_call)(value.instance)
     }
 }
