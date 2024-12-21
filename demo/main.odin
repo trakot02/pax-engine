@@ -14,7 +14,7 @@ main :: proc()
     main := Main_Scene {}
 
     pax.app_init(&app)
-    pax.app_push(&app, main_scene(&main))
+    pax.app_insert(&app, main_scene(&main))
 
     succ := pax.app_loop(&app, game_stage(&game), {
         frame_rate  = 60,

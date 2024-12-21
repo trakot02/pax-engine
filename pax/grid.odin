@@ -57,21 +57,6 @@ Grid :: struct
 //
 //
 //
-grid_find_stack :: proc(self: ^Grid, stack: int) -> (^Grid_Stack, bool)
-{
-    count := len(self.stacks)
-    index := stack - 1
-
-    if 0 <= index && index < count {
-        return &self.stacks[index], true
-    }
-
-    return nil, false
-}
-
-//
-//
-//
 grid_find_layer :: proc(self: ^Grid, stack: int, layer: int) -> (^Grid_Layer, bool)
 {
     stack_count := len(self.stacks)
@@ -111,6 +96,11 @@ grid_find_value :: proc(self: ^Grid, stack: int, layer: int, cell: [2]int) -> (^
     }
 
     return nil, false
+}
+
+grid_find :: proc {
+    grid_find_layer,
+    grid_find_value,
 }
 
 //
@@ -179,7 +169,7 @@ grid_read :: proc(self: ^Grid_Context, name: string) -> (Grid, bool)
     data, succ := os.read_entire_file_from_filename(name, alloc)
 
     if succ == false {
-        log.errorf("Grid: Unable to open %q for reading\n",
+        log.errorf("Grid: Unable to open %q for reading",
             name)
 
         return {}, false
@@ -190,22 +180,20 @@ grid_read :: proc(self: ^Grid_Context, name: string) -> (Grid, bool)
     mem.free_all(alloc)
 
     switch type in error {
-        case json.Error: log.errorf("Grid: Unable to parse JSON\n")
+        case json.Error: log.errorf("Grid: Unable to parse JSON")
 
         case json.Unmarshal_Data_Error: {
-            log.errorf("Grid: Unable to unmarshal JSON:")
-
             switch type {
-                case .Invalid_Data:          log.errorf("Invalid data\n")
-                case .Invalid_Parameter:     log.errorf("Invalid parameter\n")
-                case .Multiple_Use_Field:    log.errorf("Multiple use field\n")
-                case .Non_Pointer_Parameter: log.errorf("Non pointer parameter\n")
-                case:                        log.errorf("\n")
+                case .Invalid_Data:          log.errorf("Grid: Unable to unmarshal JSON, Invalid data")
+                case .Invalid_Parameter:     log.errorf("Grid: Unable to unmarshal JSON, Invalid parameter")
+                case .Multiple_Use_Field:    log.errorf("Grid: Unable to unmarshal JSON, Multiple use field")
+                case .Non_Pointer_Parameter: log.errorf("Grid: Unable to unmarshal JSON, Non pointer parameter")
+                case:                        log.errorf("Grid: Unable to unmarshal JSON")
             }
         }
 
         case json.Unsupported_Type_Error: {
-            log.errorf("Grid: Unable to parse JSON: Unsupported type\n")
+            log.errorf("Grid: Unable to parse JSON, Unsupported type")
         }
     }
 

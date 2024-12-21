@@ -10,6 +10,11 @@ import "../pax"
 Main_Scene :: struct
 {
     window:   ^pax.Window,
+    renderer: ^pax.Renderer,
+
+    camera: pax.Camera,
+    render: pax.Render_Context,
+
     keyboard: pax.Keyboard,
 
     image_ctx:  pax.Image_Context,
@@ -22,9 +27,6 @@ Main_Scene :: struct
 
     world:        pax.World,
     player_group: pax.Group(Player),
-
-    render: pax.Render_State,
-    camera: pax.Camera,
 
     player: int,
 
@@ -66,9 +68,14 @@ main_scene_on_key_release :: proc(event: sdl.KeyboardEvent, self: ^Main_Scene)
 
         case .P, .PLUS,  .KP_PLUS:  self.camera.scale += 1
         case .M, .MINUS, .KP_MINUS: self.camera.scale -= 1
+
+        case .B: {
+            pax.window_set_border(self.window, false)
+            pax.window_set_origin(self.window, {0, 0})
+        }
     }
 
-    pax.window_resize(self.window, WINDOW_SIZE * self.camera.scale)
+    pax.window_set_size(self.window, WINDOW_SIZE * self.camera.scale)
 }
 
 main_scene_on_close :: proc(self: ^Main_Scene)
@@ -78,11 +85,12 @@ main_scene_on_close :: proc(self: ^Main_Scene)
 
 main_scene_start :: proc(self: ^Main_Scene, stage: ^Game_Stage) -> bool
 {
-    self.window = &stage.window
+    self.window   = &stage.window
+    self.renderer = &stage.renderer
 
     pax.keyboard_init(&self.keyboard)
 
-    self.image_ctx.renderer   = self.window.renderer
+    self.image_ctx.renderer   = self.renderer
     self.sprite_ctx.allocator = context.allocator
     self.grid_ctx.allocator   = context.allocator
 
@@ -97,12 +105,12 @@ main_scene_start :: proc(self: ^Main_Scene, stage: ^Game_Stage) -> bool
     pax.world_init(&self.world)
     pax.group_init(&self.player_group)
 
-    self.render.renderer = auto_cast self.window.renderer
+    self.render.renderer = self.renderer
     self.render.camera   = &self.camera
     self.render.images   = &self.image_reg
     self.render.sprites  = &self.sprite_reg
 
-    self.player  = pax.world_create_actor(&self.world) or_return
+    self.player  = pax.world_create_actor(&self.world)               or_return
     player      := pax.group_insert(&self.player_group, self.player) or_return
 
     pax.signal_insert(&self.keyboard.release, player, main_scene_player_on_key_release)
@@ -111,7 +119,7 @@ main_scene_start :: proc(self: ^Main_Scene, stage: ^Game_Stage) -> bool
     pax.signal_insert(&self.window.close,     self,   main_scene_on_close)
 
     if main_scene_load(self) == false {
-        log.errorf("Main_Scene: Unable to load\n")
+        log.errorf("Main_Scene: Unable to load")
 
         return false
     }
@@ -150,7 +158,7 @@ main_scene_load :: proc(self: ^Main_Scene) -> bool
     player.visual.sprite = 2
     player.visual.chain  = 5
 
-    player.transform.pivot = {48, 48}
+    player.transform.point = {48, 48}
     player.transform.scale = { 1,  1}
 
     player.motion.point = {48, 48}
@@ -161,8 +169,8 @@ main_scene_load :: proc(self: ^Main_Scene) -> bool
 
     grid := pax.registry_find(&self.grid_reg, player.motion.grid) or_return
 
-    self.camera.size   = WINDOW_SIZE
-    self.camera.scale  = {4, 4}
+    self.camera.size  = WINDOW_SIZE
+    self.camera.scale = {4, 4}
 
     self.camera.offset = [2]f32 {
         WINDOW_SIZE.x / 2 - f32(grid.tile.x / 2),
@@ -171,16 +179,16 @@ main_scene_load :: proc(self: ^Main_Scene) -> bool
 
     self.camera.bounds = [4]f32 {
         0, 0,
-        f32(grid.tile.x * grid.size.x),
-        f32(grid.tile.y * grid.tile.y),
+        f32(grid.tile.x) * f32(grid.size.x),
+        f32(grid.tile.y) * f32(grid.size.y),
     }
 
     value := pax.grid_find_value(grid, 1, 3,
-        pax.point_to_cell(grid, player.transform.pivot)) or_return
+        pax.point_to_cell(grid, player.transform.point)) or_return
 
     value^ = self.player
 
-    pax.window_resize(self.window, WINDOW_SIZE * self.camera.scale)
+    pax.window_set_size(self.window, WINDOW_SIZE * self.camera.scale)
 
     return true
 }
@@ -214,10 +222,7 @@ main_scene_step :: proc(self: ^Main_Scene, delta: f32)
         player := &self.player_group.values[index]
 
         angle := controls_angle(&player.controls)
-
-        pax.render_stop_chain(&self.render, player.visual, false)
-
-        grid := pax.registry_find(&self.grid_reg, player.motion.grid) or_continue
+        grid  := pax.registry_find(&self.grid_reg, player.motion.grid) or_continue
 
         switch angle {
             case { 0, -1}: player.visual.chain = 9
@@ -250,13 +255,16 @@ main_scene_step :: proc(self: ^Main_Scene, delta: f32)
             motion_grid(&player.motion, &self.grid_reg, angle, 1, 3)
         }
 
-        player.transform.pivot = player.motion.point
+        player.transform.point = player.motion.point
 
         if player.camera != nil {
-            pax.camera_move(&self.camera, player.transform.pivot)
+            pax.camera_move(&self.camera, player.transform.point)
         }
 
-        pax.render_update_chain(&self.render, player.visual, delta)
+        sprite := pax.registry_find(&self.sprite_reg, player.visual.sprite) or_continue
+
+        pax.sprite_chain_stop(sprite, player.visual.chain, false)
+        pax.sprite_chain_update(sprite, player.visual.chain, delta)
     }
 }
 
@@ -274,11 +282,11 @@ main_scene_draw_sprite_layer :: proc(self: ^Main_Scene, layer: int, cell: [2]int
     }
 
     transf := pax.Transform {
-        pivot = point,
+        point = point,
         scale = {1, 1},
     }
 
-    pax.render_draw_sprite_frame(&self.render, visual, transf)
+    pax.render_draw_sprite(&self.render, visual, transf)
 
     return true
 }
@@ -293,13 +301,15 @@ main_scene_draw_player_layer :: proc(self: ^Main_Scene, layer: int, cell: [2]int
 
     actor := pax.group_find(&self.player_group, value^) or_return
 
-    pax.render_draw_sprite_chain(&self.render, player.visual, player.transform)
+    pax.render_draw_sprite(&self.render, player.visual, player.transform)
 
     return false
 }
 
 main_scene_draw :: proc(self: ^Main_Scene)
 {
+    pax.render_clear(&self.render, {50, 50, 50, 255})
+
     player, _ := pax.group_find(&self.player_group, self.player)
 
     if player == nil { return }
@@ -307,8 +317,6 @@ main_scene_draw :: proc(self: ^Main_Scene)
     grid, _ := pax.registry_find(&self.grid_reg, player.motion.grid)
 
     if grid == nil { return }
-
-    sdl.RenderClear(auto_cast self.render.renderer)
 
     area := pax.camera_grid_area(&self.camera, grid)
 
@@ -326,7 +334,7 @@ main_scene_draw :: proc(self: ^Main_Scene)
         }
     }
 
-    sdl.RenderPresent(auto_cast self.render.renderer)
+    pax.render_apply(&self.render)
 }
 
 main_scene :: proc(self: ^Main_Scene) -> pax.Scene

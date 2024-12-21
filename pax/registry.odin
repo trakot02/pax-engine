@@ -54,7 +54,8 @@ registry_insert :: proc(self: ^Registry($T), value: T) -> (int, bool)
     index, error := append(&self.values, value)
 
     if error != nil {
-        log.errorf("Registry(%v): Unable to insert %v\n", typeid_of(T), value)
+        log.errorf("Registry(%v): Unable to insert %v",
+            typeid_of(T), value)
 
         return 0, false
     }
@@ -105,11 +106,12 @@ registry_read :: proc(self: ^Registry($T), name: string) -> bool
     value, state := self.read_proc(self.instance, name)
 
     switch state {
+        case false:
+            log.errorf("Registry(%v): Unable to read %q",
+                typeid_of(T), name)
+
         case true:
             registry_insert(self, value) or_return
-
-        case false:
-            log.errorf("Registry(%v): Unable to read %q\n", typeid_of(T), name)
     }
 
     return state

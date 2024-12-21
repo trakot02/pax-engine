@@ -4,16 +4,33 @@ import "core:log"
 
 World :: struct
 {
-    first:  int,
-    count:  int,
+    //
+    //
+    //
+    first: int,
+
+    //
+    //
+    //
+    count: int,
+
+    //
+    //
+    //
     actors: [dynamic]int,
 }
 
+//
+//
+//
 world_init :: proc(self: ^World, allocator := context.allocator)
 {
     self.actors = make([dynamic]int, allocator)
 }
 
+//
+//
+//
 world_destroy :: proc(self: ^World)
 {
     delete(self.actors)
@@ -22,6 +39,9 @@ world_destroy :: proc(self: ^World)
     self.first = 0
 }
 
+//
+//
+//
 world_create_actor :: proc(self: ^World) -> (int, bool)
 {
     count := len(self.actors)
@@ -41,7 +61,7 @@ world_create_actor :: proc(self: ^World) -> (int, bool)
     _, error := append(&self.actors, count)
 
     if error != nil {
-        log.errorf("Unable to create a new actor\n")
+        log.errorf("World: Unable to create a new actor")
 
         return 0, false
     }
@@ -49,16 +69,19 @@ world_create_actor :: proc(self: ^World) -> (int, bool)
     return count + 1, true
 }
 
+//
+//
+//
 world_delete_actor :: proc(self: ^World, actor: int)
 {
     count := len(self.actors)
     index := actor - 1
 
     if 0 < actor && actor <= count {
-        value := &self.actors[index]
+        value := self.actors[index]
 
-        if value^ == index {
-            value^ = self.first
+        if value == index {
+            self.actors[index] = self.first
 
             self.first  = actor
             self.count += 1
@@ -68,17 +91,34 @@ world_delete_actor :: proc(self: ^World, actor: int)
 
 Group :: struct ($T: typeid)
 {
-    count:  int,
+    //
+    //
+    //
+    count: int,
+
+    //
+    //
+    //
     actors: [dynamic]int,
+
+    //
+    //
+    //
     values: [dynamic]T,
 }
 
+//
+//
+//
 group_init :: proc(self: ^Group($T), allocator := context.allocator)
 {
     self.actors = make([dynamic]int, allocator)
     self.values = make([dynamic]T,   allocator)
 }
 
+//
+//
+//
 group_destroy :: proc(self: ^Group($T))
 {
     delete(self.values)
@@ -87,6 +127,9 @@ group_destroy :: proc(self: ^Group($T))
     self.count = 0
 }
 
+//
+//
+//
 group_insert :: proc(self: ^Group($T), actor: int) -> (^T, bool)
 {
     if actor <= 0 { return nil, false }
@@ -99,8 +142,8 @@ group_insert :: proc(self: ^Group($T), actor: int) -> (^T, bool)
         }
 
         if error != nil {
-            log.errorf("Unable to insert a value for the actor %v\n",
-                actor)
+            log.errorf("Group(%v): Unable to insert a value for the actor %v",
+                typeid_of(T), actor)
 
             return nil, false
         }
@@ -116,11 +159,17 @@ group_insert :: proc(self: ^Group($T), actor: int) -> (^T, bool)
     return &self.values[index], true
 }
 
+//
+//
+//
 group_remove :: proc(self: ^Group($T), actor: int)
 {
     assert(false, "Not implemented yet")
 }
 
+//
+//
+//
 group_clear :: proc(self: ^Group($T))
 {
     clear(&self.values)
@@ -129,6 +178,9 @@ group_clear :: proc(self: ^Group($T))
     self.count = 0
 }
 
+//
+//
+//
 group_find :: proc(self: ^Group($T), actor: int) -> (^T, bool)
 {
     count := len(self.actors)

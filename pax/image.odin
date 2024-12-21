@@ -20,7 +20,7 @@ Image_Context :: struct
     //
     //
     //
-    renderer: rawptr,
+    renderer: ^Renderer,
 }
 
 //
@@ -42,13 +42,13 @@ image_read :: proc(self: ^Image_Context, name: string) -> (Image, bool)
     clone, error := strings.clone_to_cstring(name, alloc)
 
     if error != nil {
-        log.errorf("Image: Unable to open %q for reading\n",
+        log.errorf("Image: Unable to open %q for reading",
             name)
 
         return {}, false
     }
 
-    value.data = sdli.LoadTexture(auto_cast self.renderer, clone)
+    value.data = sdli.LoadTexture(auto_cast self.renderer.data, clone)
 
     mem.free_all(alloc)
 

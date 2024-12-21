@@ -117,8 +117,8 @@ motion_gate :: proc(self: ^Motion, registry: ^pax.Registry(pax.Grid), stack: int
     curr, _ := pax.grid_find_value(active, stack, layer, cell)
 
     if curr != nil && curr^ > 0 {
-        if curr^ < len(active.gates) {
-            return &active.gates[curr^]
+        if curr^ <= len(active.gates) {
+            return &active.gates[curr^ - 1]
         }
     }
 
