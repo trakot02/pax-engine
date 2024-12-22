@@ -57,12 +57,12 @@ Render_Context :: struct
     //
     //
     //
-    images: ^Registry(Image),
+    images: ^Image_Registry,
 
     //
     //
     //
-    sprites: ^Registry(Sprite),
+    sprites: ^Sprite_Registry,
 }
 
 //
@@ -97,18 +97,9 @@ render_draw_sprite :: proc(self: ^Render_Context, visual: Visual, transform: Tra
 {
     value := visual.frame
 
-    sprite := registry_find(self.sprites, visual.sprite) or_return
-    image  := registry_find(self.images,  sprite.image)  or_return
-
-    if visual.chain != 0 {
-        chain := sprite_chain(sprite, visual.chain) or_return
-
-        if 0 < chain.frame && chain.frame <= len(chain.frames) {
-            value = chain.frames[chain.frame - 1]
-        }
-    }
-
-    frame := sprite_frame(sprite, value) or_return
+    sprite := sprite_registry_find(self.sprites, visual.sprite)     or_return
+    image  := image_registry_find(self.images,   sprite.image)      or_return
+    frame  := sprite_find_frame(sprite, visual.frame, visual.chain) or_return
 
     point := [2]f32 {0, 0}
     scale := [2]f32 {1, 1}

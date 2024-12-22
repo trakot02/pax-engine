@@ -15,26 +15,33 @@ Image :: struct
     data: rawptr,
 }
 
-Image_Context :: struct
+Image_Registry :: struct
 {
     //
     //
     //
     renderer: ^Renderer,
+
+    //
+    //
+    //
+    values: [dynamic]Image,
 }
 
 //
 //
 //
-image_clear :: proc(self: ^Image_Context, value: ^Image)
+@(private)
+image_destroy :: proc(self: ^Image_Registry, image: ^Image)
 {
-    sdl.DestroyTexture(auto_cast value.data)
+    sdl.DestroyTexture(auto_cast image.data)
 }
 
 //
 //
 //
-image_read :: proc(self: ^Image_Context, name: string) -> (Image, bool)
+@(private)
+image_read :: proc(self: ^Image_Registry, name: string) -> (Image, bool)
 {
     alloc := context.temp_allocator
     value := Image {}
@@ -62,24 +69,100 @@ image_read :: proc(self: ^Image_Context, name: string) -> (Image, bool)
 }
 
 //
-// todo (trakot02): In the future.
+// todo (trakot02): In the future...
 //
-// image_write :: proc(self: ^Image_Context, name: string, value: ^Image) -> bool
-// {
-//     return false
-// }
-
-//
-//
-//
-image_registry :: proc(self: ^Image_Context) -> Registry(Image)
+@(private)
+image_write :: proc(self: ^Image_Registry, name: string, value: ^Image) -> bool
 {
-    value := Registry(Image) {}
+    return false
+}
 
-    value.instance   = auto_cast self
-    value.clear_proc = auto_cast image_clear
-    value.read_proc  = auto_cast image_read
-    // value.write_proc = auto_cast image_write
+//
+//
+//
+image_registry_init :: proc(self: ^Image_Registry, renderer: ^Renderer, allocator := context.allocator)
+{
+    self.renderer = renderer
+    self.values   = make([dynamic]Image, allocator)
+}
 
-    return value
+//
+//
+//
+image_registry_destroy :: proc(self: ^Image_Registry)
+{
+    delete(self.values)
+
+    self.values   = {}
+    self.renderer = {}
+}
+
+//
+//
+//
+image_registry_insert :: proc(self: ^Image_Registry, image: Image) -> (int, bool)
+{
+    index, error := append(&self.values, image)
+
+    if error != nil {
+        log.errorf("Image_Registry: Unable to insert %v",
+            image)
+
+        return 0, false
+    }
+
+    return index + 1, true
+}
+
+//
+//
+//
+image_registry_remove :: proc(self: ^Image_Registry, image: int)
+{
+    log.errorf("Image_Registry: Not implemented yet")
+}
+
+//
+//
+//
+image_registry_clear :: proc(self: ^Image_Registry)
+{
+    for &image in self.values {
+        image_destroy(self, &image)
+    }
+
+    clear(&self.values)
+}
+
+//
+//
+//
+image_registry_find :: proc(self: ^Image_Registry, image: int) -> (^Image, bool)
+{
+    image := image - 1
+
+    if 0 <= image && image < len(self.values) {
+        return &self.values[image], true
+    }
+
+    return nil, false
+}
+
+//
+//
+//
+image_registry_read :: proc(self: ^Image_Registry, name: string) -> bool
+{
+    value, state := image_read(self, name)
+
+    switch state {
+        case false:
+            log.errorf("Image_Registry: Unable to read %q",
+                name)
+
+        case true:
+            image_registry_insert(self, value) or_return
+    }
+
+    return state
 }

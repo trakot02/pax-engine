@@ -54,6 +54,170 @@ Grid :: struct
     gates: []Grid_Gate,
 }
 
+Grid_Registry :: struct
+{
+    //
+    //
+    //
+    allocator: mem.Allocator,
+
+    values: [dynamic]Grid,
+}
+
+//
+//
+//
+@(private)
+grid_destroy :: proc(self: ^Grid_Registry, value: ^Grid)
+{
+    mem.free_all(self.allocator)
+}
+
+//
+//
+//
+@(private)
+grid_read :: proc(self: ^Grid_Registry, name: string) -> (Grid, bool)
+{
+    alloc := context.temp_allocator
+    value := Grid {}
+
+    data, succ := os.read_entire_file_from_filename(name, alloc)
+
+    if succ == false {
+        log.errorf("Grid: Unable to open %q for reading",
+            name)
+
+        return {}, false
+    }
+
+    error := json.unmarshal(data, &value,
+        json.DEFAULT_SPECIFICATION, self.allocator)
+
+    mem.free_all(alloc)
+
+    switch type in error {
+        case json.Error: log.errorf("Grid: Unable to parse JSON")
+
+        case json.Unmarshal_Data_Error: {
+            switch type {
+                case .Invalid_Data:          log.errorf("Grid: Unable to unmarshal JSON, Invalid data")
+                case .Invalid_Parameter:     log.errorf("Grid: Unable to unmarshal JSON, Invalid parameter")
+                case .Multiple_Use_Field:    log.errorf("Grid: Unable to unmarshal JSON, Multiple use field")
+                case .Non_Pointer_Parameter: log.errorf("Grid: Unable to unmarshal JSON, Non pointer parameter")
+                case:                        log.errorf("Grid: Unable to unmarshal JSON")
+            }
+        }
+
+        case json.Unsupported_Type_Error: {
+            log.errorf("Grid: Unable to parse JSON, Unsupported type")
+        }
+    }
+
+    if error != nil { return {}, false }
+
+    return value, true
+}
+
+//
+// todo (trakot02): In the future...
+//
+@(private)
+grid_write :: proc(self: ^Grid_Registry, name: string, value: ^Grid) -> bool
+{
+    return false
+}
+
+//
+//
+//
+grid_registry_init :: proc(self: ^Grid_Registry, allocator := context.allocator)
+{
+    self.allocator = allocator
+    self.values    = make([dynamic]Grid, allocator)
+}
+
+//
+//
+//
+grid_registry_destroy :: proc(self: ^Grid_Registry)
+{
+    delete(self.values)
+
+    self.values    = {}
+    self.allocator = {}
+}
+
+//
+//
+//
+grid_registry_insert :: proc(self: ^Grid_Registry, grid: Grid) -> (int, bool)
+{
+    index, error := append(&self.values, grid)
+
+    if error != nil {
+        log.errorf("Grid_Registry: Unable to insert %v",
+            grid)
+
+        return 0, false
+    }
+
+    return index + 1, true
+}
+
+//
+//
+//
+grid_registry_remove :: proc(self: ^Grid_Registry, grid: int)
+{
+    log.errorf("Grid_Registry: Not implemented yet")
+}
+
+//
+//
+//
+grid_registry_clear :: proc(self: ^Grid_Registry)
+{
+    for &grid in self.values {
+        grid_destroy(self, &grid)
+    }
+
+    clear(&self.values)
+}
+
+//
+//
+//
+grid_registry_find :: proc(self: ^Grid_Registry, grid: int) -> (^Grid, bool)
+{
+    grid := grid - 1
+
+    if 0 <= grid && grid < len(self.values) {
+        return &self.values[grid], true
+    }
+
+    return nil, false
+}
+
+//
+//
+//
+grid_registry_read :: proc(self: ^Grid_Registry, name: string) -> bool
+{
+    value, state := grid_read(self, name)
+
+    switch state {
+        case false:
+            log.errorf("Grid_Registry: Unable to read %q",
+                name)
+
+        case true:
+            grid_registry_insert(self, value) or_return
+    }
+
+    return state
+}
+
 //
 //
 //
@@ -139,88 +303,4 @@ point_to_cell :: proc(self: ^Grid, point: [2]f32) -> [2]int
 index_to_cell :: proc(self: ^Grid, index: int) -> [2]int
 {
     return {index % self.size.x, index / self.size.x}
-}
-
-Grid_Context :: struct
-{
-    //
-    //
-    //
-    allocator: mem.Allocator,
-}
-
-//
-//
-//
-grid_clear :: proc(self: ^Grid_Context, value: ^Grid)
-{
-    mem.free_all(self.allocator)
-}
-
-//
-//
-//
-grid_read :: proc(self: ^Grid_Context, name: string) -> (Grid, bool)
-{
-    spec  := json.DEFAULT_SPECIFICATION
-    alloc := context.temp_allocator
-    value := Grid {}
-
-    data, succ := os.read_entire_file_from_filename(name, alloc)
-
-    if succ == false {
-        log.errorf("Grid: Unable to open %q for reading",
-            name)
-
-        return {}, false
-    }
-
-    error := json.unmarshal(data, &value, spec, self.allocator)
-
-    mem.free_all(alloc)
-
-    switch type in error {
-        case json.Error: log.errorf("Grid: Unable to parse JSON")
-
-        case json.Unmarshal_Data_Error: {
-            switch type {
-                case .Invalid_Data:          log.errorf("Grid: Unable to unmarshal JSON, Invalid data")
-                case .Invalid_Parameter:     log.errorf("Grid: Unable to unmarshal JSON, Invalid parameter")
-                case .Multiple_Use_Field:    log.errorf("Grid: Unable to unmarshal JSON, Multiple use field")
-                case .Non_Pointer_Parameter: log.errorf("Grid: Unable to unmarshal JSON, Non pointer parameter")
-                case:                        log.errorf("Grid: Unable to unmarshal JSON")
-            }
-        }
-
-        case json.Unsupported_Type_Error: {
-            log.errorf("Grid: Unable to parse JSON, Unsupported type")
-        }
-    }
-
-    if error != nil { return {}, false }
-
-    return value, true
-}
-
-//
-// todo (trakot02): In the future...
-//
-// grid_write :: proc(self: ^Grid_Context, name: string, value: ^Grid) -> bool
-// {
-//     return false
-// }
-
-//
-//
-//
-grid_registry :: proc(self: ^Grid_Context) -> Registry(Grid)
-{
-    value := Registry(Grid) {}
-
-    value.instance   = auto_cast self
-    value.clear_proc = auto_cast grid_clear
-    value.read_proc  = auto_cast grid_read
-    // value.write_proc = auto_cast grid_write
-
-    return value
 }
