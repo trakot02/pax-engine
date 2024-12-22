@@ -85,7 +85,12 @@ Sprite_Registry :: struct
     //
     //
     //
-    values: [dynamic]Sprite,
+    resource: Resource,
+
+    //
+    //
+    //
+    registry: Registry(Sprite),
 }
 
 //
@@ -158,7 +163,9 @@ sprite_write :: proc(self: ^Sprite_Registry, name: string, value: ^Sprite) -> bo
 sprite_registry_init :: proc(self: ^Sprite_Registry, allocator := context.allocator)
 {
     self.allocator = allocator
-    self.values    = make([dynamic]Sprite, allocator)
+
+    resource_init(&self.resource, allocator)
+    registry_init(&self.registry, allocator)
 }
 
 //
@@ -166,9 +173,9 @@ sprite_registry_init :: proc(self: ^Sprite_Registry, allocator := context.alloca
 //
 sprite_registry_destroy :: proc(self: ^Sprite_Registry)
 {
-    delete(self.values)
+    registry_destroy(&self.registry)
+    resource_destroy(&self.resource)
 
-    self.values    = {}
     self.allocator = {}
 }
 
@@ -177,24 +184,28 @@ sprite_registry_destroy :: proc(self: ^Sprite_Registry)
 //
 sprite_registry_insert :: proc(self: ^Sprite_Registry, sprite: Sprite) -> (int, bool)
 {
-    index, error := append(&self.values, sprite)
+    resource, _ := resource_create(&self.resource)
+    value, _    := registry_insert(&self.registry, resource, sprite)
 
-    if error != nil {
-        log.errorf("Sprite_Registry: Unable to insert %v",
-            sprite)
-
-        return 0, false
+    if value != nil {
+        return resource, true
     }
 
-    return index + 1, true
+    resource_delete(&self.resource, resource)
+
+    return 0, false
 }
 
 //
 //
 //
-sprite_registry_remove :: proc(self: ^Sprite_Registry, sprite: int)
+sprite_registry_remove :: proc(self: ^Sprite_Registry, sprite: int) -> bool
 {
-    log.errorf("Sprite_Registry: Not implemented yet")
+    value := registry_remove(&self.registry, sprite) or_return
+
+    sprite_destroy(self, value)
+
+    return resource_delete(&self.resource, sprite)
 }
 
 //
@@ -202,11 +213,12 @@ sprite_registry_remove :: proc(self: ^Sprite_Registry, sprite: int)
 //
 sprite_registry_clear :: proc(self: ^Sprite_Registry)
 {
-    for &sprite in self.values {
+    for &sprite in self.registry.values {
         sprite_destroy(self, &sprite)
     }
 
-    clear(&self.values)
+    registry_clear(&self.registry)
+    resource_clear(&self.resource)
 }
 
 //
@@ -214,13 +226,7 @@ sprite_registry_clear :: proc(self: ^Sprite_Registry)
 //
 sprite_registry_find :: proc(self: ^Sprite_Registry, sprite: int) -> (^Sprite, bool)
 {
-    sprite := sprite - 1
-
-    if 0 <= sprite && sprite < len(self.values) {
-        return &self.values[sprite], true
-    }
-
-    return nil, false
+    return registry_find(&self.registry, sprite)
 }
 
 //

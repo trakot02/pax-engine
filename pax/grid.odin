@@ -61,7 +61,15 @@ Grid_Registry :: struct
     //
     allocator: mem.Allocator,
 
-    values: [dynamic]Grid,
+    //
+    //
+    //
+    resource: Resource,
+
+    //
+    //
+    //
+    registry: Registry(Grid),
 }
 
 //
@@ -134,7 +142,9 @@ grid_write :: proc(self: ^Grid_Registry, name: string, value: ^Grid) -> bool
 grid_registry_init :: proc(self: ^Grid_Registry, allocator := context.allocator)
 {
     self.allocator = allocator
-    self.values    = make([dynamic]Grid, allocator)
+
+    resource_init(&self.resource, allocator)
+    registry_init(&self.registry, allocator)
 }
 
 //
@@ -142,9 +152,9 @@ grid_registry_init :: proc(self: ^Grid_Registry, allocator := context.allocator)
 //
 grid_registry_destroy :: proc(self: ^Grid_Registry)
 {
-    delete(self.values)
+    registry_destroy(&self.registry)
+    resource_destroy(&self.resource)
 
-    self.values    = {}
     self.allocator = {}
 }
 
@@ -153,24 +163,28 @@ grid_registry_destroy :: proc(self: ^Grid_Registry)
 //
 grid_registry_insert :: proc(self: ^Grid_Registry, grid: Grid) -> (int, bool)
 {
-    index, error := append(&self.values, grid)
+    resource, _ := resource_create(&self.resource)
+    value, _    := registry_insert(&self.registry, resource, grid)
 
-    if error != nil {
-        log.errorf("Grid_Registry: Unable to insert %v",
-            grid)
-
-        return 0, false
+    if value != nil {
+        return resource, true
     }
 
-    return index + 1, true
+    resource_delete(&self.resource, resource)
+
+    return 0, false
 }
 
 //
 //
 //
-grid_registry_remove :: proc(self: ^Grid_Registry, grid: int)
+grid_registry_remove :: proc(self: ^Grid_Registry, grid: int) -> bool
 {
-    log.errorf("Grid_Registry: Not implemented yet")
+    value := registry_remove(&self.registry, grid) or_return
+
+    grid_destroy(self, value)
+
+    return resource_delete(&self.resource, grid)
 }
 
 //
@@ -178,11 +192,12 @@ grid_registry_remove :: proc(self: ^Grid_Registry, grid: int)
 //
 grid_registry_clear :: proc(self: ^Grid_Registry)
 {
-    for &grid in self.values {
+    for &grid in self.registry.values {
         grid_destroy(self, &grid)
     }
 
-    clear(&self.values)
+    registry_clear(&self.registry)
+    resource_clear(&self.resource)
 }
 
 //
@@ -190,13 +205,7 @@ grid_registry_clear :: proc(self: ^Grid_Registry)
 //
 grid_registry_find :: proc(self: ^Grid_Registry, grid: int) -> (^Grid, bool)
 {
-    grid := grid - 1
-
-    if 0 <= grid && grid < len(self.values) {
-        return &self.values[grid], true
-    }
-
-    return nil, false
+    return registry_find(&self.registry, grid)
 }
 
 //
