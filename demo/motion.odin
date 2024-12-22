@@ -19,11 +19,9 @@ Motion :: struct
     state:  Motion_State,
 }
 
-motion_step :: proc(self: ^Motion, registry: ^pax.Registry(pax.Grid), step: [2]int, delta: f32) -> bool
+motion_step :: proc(self: ^Motion, registry: ^pax.Grid_Registry, step: [2]int, delta: f32) -> bool
 {
-    active, _ := pax.registry_find(registry, self.grid)
-
-    if active == nil { return false }
+    active := pax.grid_registry_find(registry, self.grid) or_return
 
     switch self.state {
         case .STILL: {
@@ -63,9 +61,9 @@ motion_step :: proc(self: ^Motion, registry: ^pax.Registry(pax.Grid), step: [2]i
     return false
 }
 
-motion_test :: proc(self: ^Motion, registry: ^pax.Registry(pax.Grid), step: [2]int, stack: int, layer: int) -> [2]int
+motion_test :: proc(self: ^Motion, registry: ^pax.Grid_Registry, step: [2]int, stack: int, layer: int) -> [2]int
 {
-    active, _ := pax.registry_find(registry, self.grid)
+    active, _ := pax.grid_registry_find(registry, self.grid)
     step      := step
 
     if active == nil || (step.x == 0 && step.y == 0 ) {
@@ -91,9 +89,9 @@ motion_test :: proc(self: ^Motion, registry: ^pax.Registry(pax.Grid), step: [2]i
     return step
 }
 
-motion_grid :: proc(self: ^Motion, registry: ^pax.Registry(pax.Grid), step: [2]int, stack: int, layer: int)
+motion_grid :: proc(self: ^Motion, registry: ^pax.Grid_Registry, step: [2]int, stack: int, layer: int)
 {
-    active, _ := pax.registry_find(registry, self.grid)
+    active, _ := pax.grid_registry_find(registry, self.grid)
 
     if active == nil { return }
 
@@ -107,9 +105,9 @@ motion_grid :: proc(self: ^Motion, registry: ^pax.Registry(pax.Grid), step: [2]i
     }
 }
 
-motion_gate :: proc(self: ^Motion, registry: ^pax.Registry(pax.Grid), stack: int, layer: int) -> ^pax.Grid_Gate
+motion_gate :: proc(self: ^Motion, registry: ^pax.Grid_Registry, stack: int, layer: int) -> ^pax.Grid_Gate
 {
-    active, _ := pax.registry_find(registry, self.grid)
+    active, _ := pax.grid_registry_find(registry, self.grid)
 
     if active == nil { return nil }
 
@@ -125,10 +123,10 @@ motion_gate :: proc(self: ^Motion, registry: ^pax.Registry(pax.Grid), stack: int
     return nil
 }
 
-motion_change :: proc(self: ^Motion, registry: ^pax.Registry(pax.Grid), stack: int, layer: int, gate: pax.Grid_Gate)
+motion_change :: proc(self: ^Motion, registry: ^pax.Grid_Registry, stack: int, layer: int, gate: pax.Grid_Gate)
 {
-    active, _ := pax.registry_find(registry, self.grid)
-    dest, _   := pax.registry_find(registry, gate.grid)
+    active, _ := pax.grid_registry_find(registry, self.grid)
+    dest, _   := pax.grid_registry_find(registry, gate.grid)
 
     if active == nil || dest == nil || self.state != .STILL { return }
 

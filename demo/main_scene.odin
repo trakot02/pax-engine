@@ -17,13 +17,9 @@ Main_Scene :: struct
 
     keyboard: pax.Keyboard,
 
-    image_ctx:  pax.Image_Context,
-    sprite_ctx: pax.Sprite_Context,
-    grid_ctx:   pax.Grid_Context,
-
-    image_reg:  pax.Registry(pax.Image),
-    sprite_reg: pax.Registry(pax.Sprite),
-    grid_reg:   pax.Registry(pax.Grid),
+    images:  pax.Image_Registry,
+    sprites: pax.Sprite_Registry,
+    grids:   pax.Grid_Registry,
 
     world:        pax.World,
     player_group: pax.Group(Player),
@@ -90,25 +86,17 @@ main_scene_start :: proc(self: ^Main_Scene, stage: ^Game_Stage) -> bool
 
     pax.keyboard_init(&self.keyboard)
 
-    self.image_ctx.renderer   = self.renderer
-    self.sprite_ctx.allocator = context.allocator
-    self.grid_ctx.allocator   = context.allocator
-
-    self.image_reg  = pax.image_registry(&self.image_ctx)
-    self.sprite_reg = pax.sprite_registry(&self.sprite_ctx)
-    self.grid_reg   = pax.grid_registry(&self.grid_ctx)
-
-    pax.registry_init(&self.image_reg)
-    pax.registry_init(&self.sprite_reg)
-    pax.registry_init(&self.grid_reg)
+    pax.image_registry_init(&self.images, self.renderer)
+    pax.sprite_registry_init(&self.sprites)
+    pax.grid_registry_init(&self.grids)
 
     pax.world_init(&self.world)
     pax.group_init(&self.player_group)
 
     self.render.renderer = self.renderer
     self.render.camera   = &self.camera
-    self.render.images   = &self.image_reg
-    self.render.sprites  = &self.sprite_reg
+    self.render.images   = &self.images
+    self.render.sprites  = &self.sprites
 
     self.player  = pax.world_create_actor(&self.world)               or_return
     player      := pax.group_insert(&self.player_group, self.player) or_return
@@ -138,20 +126,32 @@ main_scene_stop :: proc(self: ^Main_Scene)
 
 main_scene_load :: proc(self: ^Main_Scene) -> bool
 {
-    pax.registry_read_many(&self.image_reg, []string {
+    images := [?]string {
         "data/main_scene/image/tiles.png",
         "data/main_scene/image/chars.png",
-    }) or_return
+    }
 
-    pax.registry_read_many(&self.sprite_reg, []string {
+    sprites := [?]string {
         "data/main_scene/sprite/tiles.json",
         "data/main_scene/sprite/chars.json",
-    }) or_return
+    }
 
-    pax.registry_read_many(&self.grid_reg, []string {
+    grids := [?]string {
         "data/main_scene/grid/grid1.json",
         "data/main_scene/grid/grid2.json",
-    }) or_return
+    }
+
+    for name in images {
+        pax.image_registry_read(&self.images, name) or_return
+    }
+
+    for name in sprites {
+        pax.sprite_registry_read(&self.sprites, name) or_return
+    }
+
+    for name in grids {
+        pax.grid_registry_read(&self.grids, name) or_return
+    }
 
     player := pax.group_find(&self.player_group, self.player) or_return
 
@@ -167,7 +167,7 @@ main_scene_load :: proc(self: ^Main_Scene) -> bool
 
     player.camera = &self.camera
 
-    grid := pax.registry_find(&self.grid_reg, player.motion.grid) or_return
+    grid := pax.grid_registry_find(&self.grids, player.motion.grid) or_return
 
     self.camera.size  = WINDOW_SIZE
     self.camera.scale = {4, 4}
@@ -222,7 +222,7 @@ main_scene_step :: proc(self: ^Main_Scene, delta: f32)
         player := &self.player_group.values[index]
 
         angle := controls_angle(&player.controls)
-        grid  := pax.registry_find(&self.grid_reg, player.motion.grid) or_continue
+        grid  := pax.grid_registry_find(&self.grids, player.motion.grid) or_continue
 
         switch angle {
             case { 0, -1}: player.visual.chain = 9
@@ -238,21 +238,21 @@ main_scene_step :: proc(self: ^Main_Scene, delta: f32)
         if angle.x == 0 && angle.y == 0 { player.visual.chain = 5 }
 
         for layer in 1 ..= len(grid.stacks[0]) {
-            angle = motion_test(&player.motion, &self.grid_reg, angle, 1, layer)
+            angle = motion_test(&player.motion, &self.grids, angle, 1, layer)
 
             if angle.x == 0 && angle.y == 0 {
                 break
             }
         }
 
-        gate := motion_gate(&player.motion, &self.grid_reg, 3, 1)
+        gate := motion_gate(&player.motion, &self.grids, 3, 1)
 
         if gate != nil {
-            motion_change(&player.motion, &self.grid_reg, 1, 3, gate^)
+            motion_change(&player.motion, &self.grids, 1, 3, gate^)
         }
 
-        if motion_step(&player.motion, &self.grid_reg, angle, delta) {
-            motion_grid(&player.motion, &self.grid_reg, angle, 1, 3)
+        if motion_step(&player.motion, &self.grids, angle, delta) {
+            motion_grid(&player.motion, &self.grids, angle, 1, 3)
         }
 
         player.transform.point = player.motion.point
@@ -261,17 +261,16 @@ main_scene_step :: proc(self: ^Main_Scene, delta: f32)
             pax.camera_move(&self.camera, player.transform.point)
         }
 
-        sprite := pax.registry_find(&self.sprite_reg, player.visual.sprite) or_continue
+        sprite := pax.sprite_registry_find(&self.sprites, player.visual.sprite) or_continue
 
-        pax.sprite_chain_stop(sprite, player.visual.chain, false)
-        pax.sprite_chain_update(sprite, player.visual.chain, delta)
+        pax.sprite_update_chain(sprite, player.visual.chain, delta)
     }
 }
 
 main_scene_draw_sprite_layer :: proc(self: ^Main_Scene, layer: int, cell: [2]int) -> bool
 {
-    player := pax.group_find(&self.player_group, self.player)       or_return
-    grid   := pax.registry_find(&self.grid_reg, player.motion.grid) or_return
+    player := pax.group_find(&self.player_group, self.player)         or_return
+    grid   := pax.grid_registry_find(&self.grids, player.motion.grid) or_return
 
     value := pax.grid_find_value(grid, 2, layer, cell) or_return
     point := pax.cell_to_point(grid, cell)
@@ -293,8 +292,8 @@ main_scene_draw_sprite_layer :: proc(self: ^Main_Scene, layer: int, cell: [2]int
 
 main_scene_draw_player_layer :: proc(self: ^Main_Scene, layer: int, cell: [2]int) -> bool
 {
-    player := pax.group_find(&self.player_group, self.player)       or_return
-    grid   := pax.registry_find(&self.grid_reg, player.motion.grid) or_return
+    player := pax.group_find(&self.player_group, self.player)         or_return
+    grid   := pax.grid_registry_find(&self.grids, player.motion.grid) or_return
 
     value := pax.grid_find_value(grid, 2, layer, cell) or_return
     point := pax.cell_to_point(grid, cell)
@@ -314,7 +313,7 @@ main_scene_draw :: proc(self: ^Main_Scene)
 
     if player == nil { return }
 
-    grid, _ := pax.registry_find(&self.grid_reg, player.motion.grid)
+    grid, _ := pax.grid_registry_find(&self.grids, player.motion.grid)
 
     if grid == nil { return }
 

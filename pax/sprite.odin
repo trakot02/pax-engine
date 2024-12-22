@@ -16,25 +16,21 @@ Sprite_Frame :: struct
     //
     //
     base: [2]f32,
-
-    //
-    //
-    //
-    delay: f32,
 }
+
+Sprite_Chain_Flag :: enum
+{
+    STOP,
+    LOOP,
+}
+
+//
+//
+//
+Sprite_Chain_Flags :: bit_set[Sprite_Chain_Flag]
 
 Sprite_Chain :: struct
 {
-    //
-    //
-    //
-    loop: bool,
-
-    //
-    //
-    //
-    stop: bool,
-
     //
     //
     //
@@ -49,6 +45,11 @@ Sprite_Chain :: struct
     //
     //
     timer: f32,
+
+    //
+    //
+    //
+    flags: Sprite_Chain_Flags,
 
     //
     //
@@ -74,75 +75,24 @@ Sprite :: struct
     chains: []Sprite_Chain,
 }
 
-//
-//
-//
-sprite_chain :: proc(self: ^Sprite, chain: int) -> (^Sprite_Chain, bool)
-{
-    count := len(self.chains)
-    index := chain - 1
-
-    if 0 <= index && index < count {
-        return &self.chains[index], true
-    }
-
-    return nil, false
-}
-
-//
-//
-//
-sprite_frame :: proc(self: ^Sprite, frame: int) -> (^Sprite_Frame, bool)
-{
-    count := len(self.frames)
-    index := frame - 1
-
-    if 0 <= index && index < count {
-        return &self.frames[index], true
-    }
-
-    return nil, false
-}
-
-sprite_chain_update :: proc(self: ^Sprite, chain: int, delta: f32) -> bool
-{
-    chain := sprite_chain(self, chain) or_return
-
-    chain.timer += delta
-
-    if chain.timer >= chain.delay {
-        chain.timer -= chain.delay
-
-        if chain.stop == false {
-            chain.frame %= len(chain.frames)
-            chain.frame += 1
-        }
-    }
-
-    return true
-}
-
-sprite_chain_stop :: proc(self: ^Sprite, chain: int, stop: bool) -> bool
-{
-    chain := sprite_chain(self, chain) or_return
-
-    chain.stop = stop
-
-    return true
-}
-
-Sprite_Context :: struct
+Sprite_Registry :: struct
 {
     //
     //
     //
     allocator: mem.Allocator,
+
+    //
+    //
+    //
+    values: [dynamic]Sprite,
 }
 
 //
 //
 //
-sprite_clear :: proc(self: ^Sprite_Context, value: ^Sprite)
+@(private)
+sprite_destroy :: proc(self: ^Sprite_Registry, value: ^Sprite)
 {
     mem.free_all(self.allocator)
 }
@@ -150,9 +100,9 @@ sprite_clear :: proc(self: ^Sprite_Context, value: ^Sprite)
 //
 //
 //
-sprite_read :: proc(self: ^Sprite_Context, name: string) -> (Sprite, bool)
+@(private)
+sprite_read :: proc(self: ^Sprite_Registry, name: string) -> (Sprite, bool)
 {
-    spec  := json.DEFAULT_SPECIFICATION
     alloc := context.temp_allocator
     value := Sprite {}
 
@@ -165,7 +115,8 @@ sprite_read :: proc(self: ^Sprite_Context, name: string) -> (Sprite, bool)
         return {}, false
     }
 
-    error := json.unmarshal(data, &value, spec, self.allocator)
+    error := json.unmarshal(data, &value,
+        json.DEFAULT_SPECIFICATION, self.allocator)
 
     mem.free_all(alloc)
 
@@ -195,22 +146,168 @@ sprite_read :: proc(self: ^Sprite_Context, name: string) -> (Sprite, bool)
 //
 // todo (trakot02): In the future...
 //
-// sprite_write :: proc(self: ^Sprite_Context, name: string, value: ^Sprite) -> bool
-// {
-//     return false
-// }
-
-//
-//
-//
-sprite_registry :: proc(self: ^Sprite_Context) -> Registry(Sprite)
+@(private)
+sprite_write :: proc(self: ^Sprite_Registry, name: string, value: ^Sprite) -> bool
 {
-    value := Registry(Sprite) {}
+    return false
+}
 
-    value.instance   = auto_cast self
-    value.clear_proc = auto_cast sprite_clear
-    value.read_proc  = auto_cast sprite_read
-    // value.write_proc = auto_cast sprite_write
+//
+//
+//
+sprite_registry_init :: proc(self: ^Sprite_Registry, allocator := context.allocator)
+{
+    self.allocator = allocator
+    self.values    = make([dynamic]Sprite, allocator)
+}
 
-    return value
+//
+//
+//
+sprite_registry_destroy :: proc(self: ^Sprite_Registry)
+{
+    delete(self.values)
+
+    self.values    = {}
+    self.allocator = {}
+}
+
+//
+//
+//
+sprite_registry_insert :: proc(self: ^Sprite_Registry, sprite: Sprite) -> (int, bool)
+{
+    index, error := append(&self.values, sprite)
+
+    if error != nil {
+        log.errorf("Sprite_Registry: Unable to insert %v",
+            sprite)
+
+        return 0, false
+    }
+
+    return index + 1, true
+}
+
+//
+//
+//
+sprite_registry_remove :: proc(self: ^Sprite_Registry, sprite: int)
+{
+    log.errorf("Sprite_Registry: Not implemented yet")
+}
+
+//
+//
+//
+sprite_registry_clear :: proc(self: ^Sprite_Registry)
+{
+    for &sprite in self.values {
+        sprite_destroy(self, &sprite)
+    }
+
+    clear(&self.values)
+}
+
+//
+//
+//
+sprite_registry_find :: proc(self: ^Sprite_Registry, sprite: int) -> (^Sprite, bool)
+{
+    sprite := sprite - 1
+
+    if 0 <= sprite && sprite < len(self.values) {
+        return &self.values[sprite], true
+    }
+
+    return nil, false
+}
+
+//
+//
+//
+sprite_registry_read :: proc(self: ^Sprite_Registry, name: string) -> bool
+{
+    value, state := sprite_read(self, name)
+
+    switch state {
+        case false:
+            log.errorf("Sprite_Registry: Unable to read %q",
+                name)
+
+        case true:
+            sprite_registry_insert(self, value) or_return
+    }
+
+    return state
+}
+
+//
+//
+//
+sprite_find_chain :: proc(self: ^Sprite, chain: int) -> (^Sprite_Chain, bool)
+{
+    chain := chain - 1
+
+    if 0 <= chain && chain < len(self.chains) {
+        return &self.chains[chain], true
+    }
+
+    return nil, false
+}
+
+//
+//
+//
+sprite_find_frame :: proc(self: ^Sprite, frame: int, chain: int = 0) -> (^Sprite_Frame, bool)
+{
+    chain := chain - 1
+    frame := frame - 1
+
+    if 0 <= chain && chain < len(self.chains) {
+        temp := self.chains[chain]
+
+        // todo (trakot02): handle edge case better...
+        if temp.frame == 0 { temp.frame = 1 }
+
+        if 0 < temp.frame && temp.frame <= len(temp.frames) {
+            frame = temp.frames[temp.frame - 1] - 1
+        }
+    }
+
+    if 0 <= frame && frame < len(self.frames) {
+        return &self.frames[frame], true
+    }
+
+    return nil, false
+}
+
+sprite_update_chain :: proc(self: ^Sprite, chain: int, delta: f32) -> bool
+{
+    chain := sprite_find_chain(self, chain) or_return
+
+    chain.timer += delta
+
+    if chain.timer >= chain.delay {
+        chain.timer -= chain.delay
+
+        if chain.flags & {.STOP} == {} {
+            chain.frame %= len(chain.frames)
+            chain.frame += 1
+        }
+    }
+
+    return true
+}
+
+sprite_stop_chain :: proc(self: ^Sprite, chain: int, stop: bool) -> bool
+{
+    chain := sprite_find_chain(self, chain) or_return
+
+    switch stop {
+        case false: chain.flags -= {.STOP}
+        case true:  chain.flags += {.STOP}
+    }
+
+    return true
 }
