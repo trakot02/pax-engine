@@ -1,9 +1,9 @@
 package pax
 
 import "core:mem"
-import "core:log"
 import "core:encoding/json"
 import "core:os"
+import "core:log"
 
 Grid_Layer :: []int
 Grid_Stack :: []int

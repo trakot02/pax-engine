@@ -1,9 +1,9 @@
 package pax
 
 import "core:mem"
-import "core:log"
-import "core:os"
 import "core:encoding/json"
+import "core:os"
+import "core:log"
 
 Sprite_Frame :: struct
 {
@@ -62,7 +62,7 @@ Sprite :: struct
     //
     //
     //
-    image: int,
+    texture: int,
 
     //
     //

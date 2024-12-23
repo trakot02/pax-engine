@@ -1,8 +1,5 @@
 package pax
 
-import sdl  "vendor:sdl2"
-import sdli "vendor:sdl2/image"
-
 Camera :: struct
 {
     //

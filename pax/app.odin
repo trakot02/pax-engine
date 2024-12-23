@@ -1,9 +1,8 @@
 package pax
 
 import "core:log"
-import "core:time"
 
-import sdl "vendor:sdl2"
+import rl "vendor:raylib"
 
 App_Config :: struct
 {
@@ -25,11 +24,6 @@ App_Config :: struct
 
 App :: struct
 {
-    //
-    //
-    //
-    tick: time.Tick,
-
     //
     //
     //
@@ -57,7 +51,6 @@ app_destroy :: proc(self: ^App)
     delete(self.scenes)
 
     self.stage = {}
-    self.tick  = {}
 }
 
 //
@@ -152,27 +145,15 @@ app_stop :: proc(self: ^App)
 //
 //
 //
-app_elapsed :: proc(self: ^App) -> i64
-{
-    diff := time.tick_lap_time(&self.tick)
-    nano := time.duration_nanoseconds(diff)
-
-    return nano
-}
-
-//
-//
-//
 app_loop :: proc(self: ^App, stage: Stage, config: App_Config) -> bool
 {
     scene := app_find(self, config.first_scene) or_return
 
-    frame_rate: i64 = i64(config.frame_rate)
-    frame_skip: i64 = i64(config.frame_skip)
-    frame_time: i64 = 1_000_000_000 / frame_rate
+    frame_rate := config.frame_rate
+    frame_skip := config.frame_skip
+    frame_time := 1.0 / f32(frame_rate)
 
-    delta: f32 = 1 / f32(frame_rate)
-    elaps: i64 = 0
+    elaps: f32 = 0
     input: int = 0
 
     self.stage = stage
@@ -180,17 +161,21 @@ app_loop :: proc(self: ^App, stage: Stage, config: App_Config) -> bool
     app_start(self) or_return
     scene_enter(scene)
 
-    for loops: i64 = 0; input >= 0; loops = 0 {
-        elaps += app_elapsed(self)
+    for loops: int = 0; input >= 0; loops = 0 {
+        elaps += rl.GetFrameTime()
 
         for frame_time < elaps && loops < frame_skip {
-            scene_step(scene, delta)
+            scene_step(scene, frame_time)
 
             elaps -= frame_time
             loops += 1
         }
 
+        rl.BeginDrawing()
+
         scene_draw(scene)
+
+        rl.EndDrawing()
 
         input = scene_input(scene)
 
@@ -274,7 +259,7 @@ Scene :: struct
     //
     //
     //
-    proc_input: proc(self: rawptr, event: sdl.Event) -> int,
+    proc_input: proc(self: rawptr) -> int,
 
     //
     //
@@ -324,17 +309,7 @@ scene_leave :: proc(self: ^Scene)
 //
 scene_input :: proc(self: ^Scene) -> int
 {
-    event: sdl.Event
-
-    for sdl.PollEvent(&event) {
-        value := self.proc_input(self.instance, event)
-
-        if value != 0 {
-            return value
-        }
-    }
-
-    return 0
+    return self.proc_input(self.instance)
 }
 
 //

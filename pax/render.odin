@@ -2,53 +2,10 @@ package pax
 
 import "core:log"
 
-import sdl  "vendor:sdl2"
-import sdli "vendor:sdl2/image"
-
-Renderer :: struct
-{
-    //
-    //
-    //
-    data: rawptr,
-}
-
-//
-//
-//
-renderer_init :: proc(self: ^Renderer, window: ^Window) -> bool
-{
-    render_flags := sdl.RendererFlags {.ACCELERATED}
-
-    self.data = auto_cast sdl.CreateRenderer(auto_cast window.data,
-        -1, render_flags)
-
-    if self.data == nil {
-        log.errorf("SDL: %v", sdl.GetErrorString())
-
-        return false
-    }
-
-    return true
-}
-
-//
-//
-//
-renderer_destroy :: proc(self: ^Renderer)
-{
-    sdl.DestroyRenderer(auto_cast self.data)
-
-    self.data = nil
-}
+import rl "vendor:raylib"
 
 Render_Context :: struct
 {
-    //
-    //
-    //
-    renderer: ^Renderer,
-
     //
     //
     //
@@ -57,7 +14,7 @@ Render_Context :: struct
     //
     //
     //
-    images: ^Image_Registry,
+    textures: ^Texture_Registry,
 
     //
     //
@@ -68,26 +25,11 @@ Render_Context :: struct
 //
 //
 //
-render_clear :: proc(self: ^Render_Context, color: [4]u8 = {}) -> bool
+render_clear :: proc(self: ^Render_Context, color: [4]u8 = {})
 {
-    code := sdl.SetRenderDrawColor(auto_cast self.renderer.data,
-        color.r, color.g, color.b, color.a)
-
-    if code != 0 { return false }
-
-    code = sdl.RenderClear(auto_cast self.renderer.data)
-
-    if code != 0 { return false }
-
-    return true
-}
-
-//
-//
-//
-render_apply :: proc(self: ^Render_Context)
-{
-    sdl.RenderPresent(auto_cast self.renderer.data)
+    rl.ClearBackground(rl.Color {
+        color.x, color.y, color.z, color.w,
+    })
 }
 
 //
@@ -97,9 +39,9 @@ render_draw_sprite :: proc(self: ^Render_Context, visual: Visual, transform: Tra
 {
     value := visual.frame
 
-    sprite := sprite_registry_find(self.sprites, visual.sprite)     or_return
-    image  := image_registry_find(self.images,   sprite.image)      or_return
-    frame  := sprite_find_frame(sprite, visual.frame, visual.chain) or_return
+    sprite  := sprite_registry_find(self.sprites, visual.sprite)     or_return
+    texture := texture_registry_find(self.textures, sprite.texture)  or_return
+    frame   := sprite_find_frame(sprite, visual.frame, visual.chain) or_return
 
     point := [2]f32 {0, 0}
     scale := [2]f32 {1, 1}
@@ -109,26 +51,20 @@ render_draw_sprite :: proc(self: ^Render_Context, visual: Visual, transform: Tra
         scale = camera_scale(self.camera) * transform.scale
     }
 
-    part := sdl.Rect {
-        i32(frame.rect.x), i32(frame.rect.y),
-        i32(frame.rect.z), i32(frame.rect.w),
+    part := rl.Rectangle {
+        f32(frame.rect.x), f32(frame.rect.y),
+        f32(frame.rect.z), f32(frame.rect.w),
     }
 
-    rect := sdl.Rect {
-        i32(scale.x * (transform.point.x + point.x)),
-        i32(scale.y * (transform.point.y + point.y)),
-        i32(scale.x * f32(frame.rect.z)),
-        i32(scale.y * f32(frame.rect.w)),
+    rect := rl.Rectangle {
+        scale.x * (transform.point.x + point.x),
+        scale.y * (transform.point.y + point.y),
+        scale.x * f32(frame.rect.z),
+        scale.y * f32(frame.rect.w),
     }
 
-    code := sdl.RenderCopy(auto_cast self.renderer.data,
-        auto_cast image.data, &part, &rect)
-
-    if code != 0 {
-        log.errorf("SDL: %v", sdl.GetErrorString())
-
-        return false
-    }
+    rl.DrawTexturePro(texture^, part, rect, {0, 0}, 0,
+        {255, 255, 255, 255})
 
     return true
 }
