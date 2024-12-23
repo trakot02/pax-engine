@@ -25,7 +25,12 @@ Image_Registry :: struct
     //
     //
     //
-    values: [dynamic]Image,
+    resource: Resource,
+
+    //
+    //
+    //
+    registry: Registry(Image),
 }
 
 //
@@ -83,7 +88,9 @@ image_write :: proc(self: ^Image_Registry, name: string, value: ^Image) -> bool
 image_registry_init :: proc(self: ^Image_Registry, renderer: ^Renderer, allocator := context.allocator)
 {
     self.renderer = renderer
-    self.values   = make([dynamic]Image, allocator)
+
+    resource_init(&self.resource, allocator)
+    registry_init(&self.registry, allocator)
 }
 
 //
@@ -91,9 +98,9 @@ image_registry_init :: proc(self: ^Image_Registry, renderer: ^Renderer, allocato
 //
 image_registry_destroy :: proc(self: ^Image_Registry)
 {
-    delete(self.values)
+    registry_destroy(&self.registry)
+    resource_destroy(&self.resource)
 
-    self.values   = {}
     self.renderer = {}
 }
 
@@ -102,24 +109,28 @@ image_registry_destroy :: proc(self: ^Image_Registry)
 //
 image_registry_insert :: proc(self: ^Image_Registry, image: Image) -> (int, bool)
 {
-    index, error := append(&self.values, image)
+    resource, _ := resource_create(&self.resource)
+    value, _    := registry_insert(&self.registry, resource, image)
 
-    if error != nil {
-        log.errorf("Image_Registry: Unable to insert %v",
-            image)
-
-        return 0, false
+    if value != nil {
+        return resource, true
     }
 
-    return index + 1, true
+    resource_delete(&self.resource, resource)
+
+    return 0, false
 }
 
 //
 //
 //
-image_registry_remove :: proc(self: ^Image_Registry, image: int)
+image_registry_remove :: proc(self: ^Image_Registry, image: int) -> bool
 {
-    log.errorf("Image_Registry: Not implemented yet")
+    value := registry_remove(&self.registry, image) or_return
+
+    image_destroy(self, value)
+
+    return resource_delete(&self.resource, image)
 }
 
 //
@@ -127,11 +138,12 @@ image_registry_remove :: proc(self: ^Image_Registry, image: int)
 //
 image_registry_clear :: proc(self: ^Image_Registry)
 {
-    for &image in self.values {
+    for &image in self.registry.values {
         image_destroy(self, &image)
     }
 
-    clear(&self.values)
+    registry_clear(&self.registry)
+    resource_clear(&self.resource)
 }
 
 //
@@ -139,13 +151,7 @@ image_registry_clear :: proc(self: ^Image_Registry)
 //
 image_registry_find :: proc(self: ^Image_Registry, image: int) -> (^Image, bool)
 {
-    image := image - 1
-
-    if 0 <= image && image < len(self.values) {
-        return &self.values[image], true
-    }
-
-    return nil, false
+    return registry_find(&self.registry, image)
 }
 
 //

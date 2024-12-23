@@ -21,8 +21,8 @@ Main_Scene :: struct
     sprites: pax.Sprite_Registry,
     grids:   pax.Grid_Registry,
 
-    world:        pax.World,
-    player_group: pax.Group(Player),
+    actors:  pax.Resource,
+    players: pax.Registry(Player),
 
     player: int,
 
@@ -90,16 +90,16 @@ main_scene_start :: proc(self: ^Main_Scene, stage: ^Game_Stage) -> bool
     pax.sprite_registry_init(&self.sprites)
     pax.grid_registry_init(&self.grids)
 
-    pax.world_init(&self.world)
-    pax.group_init(&self.player_group)
+    pax.resource_init(&self.actors)
+    pax.registry_init(&self.players)
 
     self.render.renderer = self.renderer
     self.render.camera   = &self.camera
     self.render.images   = &self.images
     self.render.sprites  = &self.sprites
 
-    self.player  = pax.world_create_actor(&self.world)               or_return
-    player      := pax.group_insert(&self.player_group, self.player) or_return
+    self.player  = pax.resource_create(&self.actors) or_return
+    player      := pax.registry_insert(&self.players, self.player, Player {}) or_return
 
     pax.signal_insert(&self.keyboard.release, player, main_scene_player_on_key_release)
     pax.signal_insert(&self.keyboard.press,   player, main_scene_player_on_key_press)
@@ -153,7 +153,7 @@ main_scene_load :: proc(self: ^Main_Scene) -> bool
         pax.grid_registry_read(&self.grids, name) or_return
     }
 
-    player := pax.group_find(&self.player_group, self.player) or_return
+    player := pax.registry_find(&self.players, self.player) or_return
 
     player.visual.sprite = 2
     player.visual.chain  = 5
@@ -218,8 +218,8 @@ main_scene_input :: proc(self: ^Main_Scene, event: sdl.Event) -> int
 
 main_scene_step :: proc(self: ^Main_Scene, delta: f32)
 {
-    for index in 0 ..< self.player_group.count {
-        player := &self.player_group.values[index]
+    for index in 0 ..< self.players.count {
+        player := &self.players.values[index]
 
         angle := controls_angle(&player.controls)
         grid  := pax.grid_registry_find(&self.grids, player.motion.grid) or_continue
@@ -269,7 +269,7 @@ main_scene_step :: proc(self: ^Main_Scene, delta: f32)
 
 main_scene_draw_sprite_layer :: proc(self: ^Main_Scene, layer: int, cell: [2]int) -> bool
 {
-    player := pax.group_find(&self.player_group, self.player)         or_return
+    player := pax.registry_find(&self.players, self.player)           or_return
     grid   := pax.grid_registry_find(&self.grids, player.motion.grid) or_return
 
     value := pax.grid_find_value(grid, 2, layer, cell) or_return
@@ -292,13 +292,13 @@ main_scene_draw_sprite_layer :: proc(self: ^Main_Scene, layer: int, cell: [2]int
 
 main_scene_draw_player_layer :: proc(self: ^Main_Scene, layer: int, cell: [2]int) -> bool
 {
-    player := pax.group_find(&self.player_group, self.player)         or_return
+    player := pax.registry_find(&self.players, self.player)           or_return
     grid   := pax.grid_registry_find(&self.grids, player.motion.grid) or_return
 
     value := pax.grid_find_value(grid, 2, layer, cell) or_return
     point := pax.cell_to_point(grid, cell)
 
-    actor := pax.group_find(&self.player_group, value^) or_return
+    actor := pax.registry_find(&self.players, value^) or_return
 
     pax.render_draw_sprite(&self.render, player.visual, player.transform)
 
@@ -309,7 +309,7 @@ main_scene_draw :: proc(self: ^Main_Scene)
 {
     pax.render_clear(&self.render, {50, 50, 50, 255})
 
-    player, _ := pax.group_find(&self.player_group, self.player)
+    player, _ := pax.registry_find(&self.players, self.player)
 
     if player == nil { return }
 
