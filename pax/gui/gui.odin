@@ -18,7 +18,7 @@ List_Alignment :: enum
     //
     //
     //
-    SIMPLE,
+    DEFAULT,
 
     //
     //
@@ -47,23 +47,29 @@ List_Layout :: struct
 //
 //
 //
-compute_list_size :: proc(self: ^Element, layout: List_Layout)
+compute_list_size :: proc(values: [dynamic]Element, self: int, layout: List_Layout)
 {
-    rect  := self.offset
+    if self <= 0 || self > len(values) { return }
+
+    elem  := values[self - 1]
+    rect  := elem.offset
     count := 0
 
-    for elem := self.first; elem != nil; elem = elem.next {
-        compute_size(elem)
+    for index := elem.first; 0 < index && index <= len(values); {
+        compute_size(values, index)
+
+        child := values[index - 1]
+        index := child.next
 
         switch layout.direction {
             case .COL: {
-                rect.w += elem.absolute.w
-                rect.z  = max(rect.z, elem.absolute.z)
+                rect.w += child.absolute.w
+                rect.z  = max(rect.z, child.absolute.z)
             }
 
             case .ROW: {
-                rect.z += elem.absolute.z
-                rect.w  = max(rect.w, elem.absolute.w)
+                rect.z += child.absolute.z
+                rect.w  = max(rect.w, child.absolute.w)
             }
         }
 
@@ -71,60 +77,66 @@ compute_list_size :: proc(self: ^Element, layout: List_Layout)
     }
 
     if layout.alignment == .STRETCH {
-        for elem := self.first; elem != nil; elem = elem.next {
+        for index := elem.first; 0 < index && index <= len(values); {
+            child := values[index - 1]
+            index := child.next
+
             switch layout.direction {
-                case .COL: elem.absolute.z = rect.z
-                case .ROW: elem.absolute.w = rect.w
+                case .COL: child.absolute.z = rect.z
+                case .ROW: child.absolute.w = rect.w
             }
         }
     }
 
-    if count != 0 {
+    if count > 1 {
         switch layout.direction {
             case .COL: rect.w += layout.spacing * f32(count - 1)
             case .ROW: rect.z += layout.spacing * f32(count - 1)
         }
     }
 
-    self.absolute = rect
+    elem.absolute = rect
 }
 
 //
 //
 //
-compute_list_pos :: proc(self: ^Element, layout: List_Layout)
+compute_list_pos :: proc(values: [dynamic]Element, self: int, layout: List_Layout)
 {
-    compute_base_pos(self)
+    compute_base_pos(values, self)
 
-    rect := self.absolute
+    elem := values[self - 1]
+    rect := elem.absolute
 
-    for elem := self.first; elem != nil; elem = elem.next {
+    for index := elem.first; 0 < index && index <= len(values); {
+        child := values[index - 1]
+        index  = child.next
+
         switch layout.direction {
             case .COL: {
-                elem.absolute.xy  = elem.offset.xy  + rect.xy
-                elem.absolute.x  -= elem.origin.x   * elem.absolute.z
-                elem.absolute.x  += elem.relative.x * self.absolute.z
+                child.absolute.xy  = child.offset.xy  + rect.xy
+                child.absolute.x  -= child.origin.x   * child.absolute.z
+                child.absolute.x  += child.relative.x * elem.absolute.z
 
-                rect.y  = elem.absolute.y
-                rect.y += elem.absolute.w + layout.spacing
-
-                for elem := elem.first; elem != nil; elem = elem.next {
-                    compute_pos(elem)
-                }
+                rect.y  = child.absolute.y
+                rect.y += child.absolute.w + layout.spacing
             }
 
             case .ROW: {
-                elem.absolute.xy  = elem.offset.xy  + rect.xy
-                elem.absolute.y  -= elem.origin.y   * elem.absolute.w
-                elem.absolute.y  += elem.relative.y * self.absolute.w
+                child.absolute.xy  = child.offset.xy  + rect.xy
+                child.absolute.y  -= child.origin.y   * child.absolute.w
+                child.absolute.y  += child.relative.y * elem.absolute.w
 
-                rect.x  = elem.absolute.x
-                rect.x += elem.absolute.z + layout.spacing
-
-                for elem := elem.first; elem != nil; elem = elem.next {
-                    compute_pos(elem)
-                }
+                rect.x  = child.absolute.x
+                rect.x += child.absolute.z + layout.spacing
             }
+        }
+
+        for index := child.first; 0 < index && index <= len(values); {
+            compute_pos(values, index)
+
+            child = values[index - 1]
+            index = child.next
         }
     }
 }
@@ -140,29 +152,56 @@ Layout :: union
 //
 //
 //
-compute_base_size :: proc(self: ^Element)
+compute_base_size :: proc(values: [dynamic]Element, self: int)
 {
-    self.absolute.zw = self.offset.zw
+    if self < 0 || self >= len(values) { return }
 
-    if self.parent != nil {
-        self.absolute.zw += self.parent.absolute.zw *
-            self.relative.zw
+    elem := values[self - 1]
+
+    elem.absolute.zw = elem.offset.zw
+
+    if 0 < elem.parent && elem.parent < len(values) {
+        parent := values[elem.parent - 1]
+
+        elem.absolute.zw += parent.absolute.zw *
+            elem.relative.zw
     }
 }
 
 //
 //
 //
-compute_base_pos :: proc(self: ^Element)
+compute_base_pos :: proc(values: [dynamic]Element, self: int)
 {
-    self.absolute.xy  = self.offset.xy
-    self.absolute.xy -= self.origin * self.absolute.zw
+    if self < 0 || self >= len(values) { return }
 
-    if self.parent != nil {
-        self.absolute.xy += self.parent.absolute.zw *
-            self.relative.xy + self.parent.absolute.xy
+    elem := values[self - 1]
+
+    elem.absolute.xy  = elem.offset.xy
+    elem.absolute.xy -= elem.origin * elem.absolute.zw
+
+    if 0 < elem.parent && elem.parent < len(values) {
+        parent := values[elem.parent - 1]
+
+        elem.absolute.xy += parent.absolute.zw *
+            elem.relative.xy + parent.absolute.xy
     }
 }
+
+Element_Flag :: enum
+{
+    //
+    //
+    //
+    KEYBOARD_FOCUS,
+
+    //
+    //
+    //
+    MOUSE_FOCUS,
+}
+
+Element_State :: distinct bit_set[Element_Flag]
 
 Element :: struct
 {
@@ -189,49 +228,64 @@ Element :: struct
     //
     //
     //
+    color: [4]u8,
+
+    //
+    //
+    //
+    state: Element_State,
+
+    //
+    //
+    //
     layout: Layout,
 
     //
     //
     //
-    parent: ^Element,
+    parent: int,
 
     //
     //
     //
-    first: ^Element,
+    first: int,
 
     //
     //
     //
-    last: ^Element,
+    last: int,
 
     //
     //
     //
-    prev: ^Element,
+    prev: int,
 
     //
     //
     //
-    next: ^Element,
+    next: int,
 }
 
 //
 //
 //
-compute_size :: proc(self: ^Element)
+compute_size :: proc(values: [dynamic]Element, self: int)
 {
-    if self == nil { return }
+    if self <= 0 || self > len(values) { return }
 
-    switch type in self.layout {
-        case List_Layout: compute_list_size(self, type)
+    elem := values[self - 1]
+
+    switch type in elem.layout {
+        case List_Layout: compute_list_size(values, self, type)
 
         case nil: {
-            compute_base_size(self)
+            compute_base_size(values, self)
 
-            for elem := self.first; elem != nil; elem = elem.next {
-                compute_size(elem)
+            for index := elem.first; 0 < index && index <= len(values); {
+                compute_size(values, index)
+
+                child := values[index - 1]
+                index  = child.next
             }
         }
     }
@@ -240,18 +294,23 @@ compute_size :: proc(self: ^Element)
 //
 //
 //
-compute_pos :: proc(self: ^Element)
+compute_pos :: proc(values: [dynamic]Element, self: int)
 {
-    if self == nil { return }
+    if self <= 0 || self > len(values) { return }
 
-    switch type in self.layout {
-        case List_Layout: compute_list_pos(self, type)
+    elem := values[self - 1]
+
+    switch type in elem.layout {
+        case List_Layout: compute_list_pos(values, self, type)
 
         case nil: {
-            compute_base_pos(self)
+            compute_base_pos(values, self)
 
-            for elem := self.first; elem != nil; elem = elem.next {
-                compute_pos(elem)
+            for index := elem.first; 0 < index && index <= len(values); {
+                compute_pos(values, index)
+
+                child := values[index - 1]
+                index  = child.next
             }
         }
     }
@@ -260,10 +319,70 @@ compute_pos :: proc(self: ^Element)
 //
 //
 //
-compute :: proc(root: ^Element)
+set_mouse_focus :: proc(values: [dynamic]Element, self: int, point: [2]f32) -> bool
 {
-    assert(root.parent == nil, "Given element is not root")
+    if self <= 0 || self > len(values) { return false }
 
-    compute_size(root)
-    compute_pos(root)
+    elem := values[self - 1]
+
+    point_in_rect(elem.absolute, point) or_return
+
+    for index := elem.first; 0 < index && index <= len(values); {
+        if set_mouse_focus(values, index, point) {
+            return true
+        }
+
+        child := values[index - 1]
+        index  = child.next
+    }
+
+    elem.state += {.MOUSE_FOCUS}
+
+    return true
+}
+
+//
+//
+//
+update_layout :: proc(values: [dynamic]Element, root: int, size: [2]f32)
+{
+    if root <= 0 || root > len(values) { return }
+
+    elem := values[root - 1]
+
+    assert(elem.parent <= 0 || elem.parent > len(values),
+        "Given element is not root")
+
+    elem.offset.zw = size
+
+    compute_size(values, root)
+    compute_pos(values, root)
+}
+
+//
+//
+//
+update_mouse :: proc(values: [dynamic]Element, root: int, point: [2]f32)
+{
+    if root <= 0 || root > len(values) { return }
+
+    elem := values[root - 1]
+
+    assert(elem.parent <= 0 || elem.parent > len(values),
+        "Given element is not root")
+
+    for &elem in values {
+        elem.state -= {.MOUSE_FOCUS}
+    }
+
+    set_mouse_focus(values, root, point)
+}
+
+//
+//
+//
+point_in_rect :: proc(rect: [4]f32, point: [2]f32) -> bool
+{
+    return rect.x <= point.x && point.x <= rect.x + rect.z &&
+           rect.y <= point.y && point.y <= rect.y + rect.w
 }
