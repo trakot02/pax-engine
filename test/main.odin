@@ -5,127 +5,112 @@ import "core:fmt"
 import rl "vendor:raylib"
 
 import gui "../pax/gui"
+import pax "../pax"
 
 list :: proc(state: ^gui.State)
 {
-    /* 1 */ gui.append_child(state, 0, gui.Element {
+    /* 1 */ gui.append_child(state, 0, {}, {
         fill = {32, 32, 32, 255},
+    }, nil)
+
+    /* 2 */ gui.append_child(state, 1, {
+        offset   = {  8,   8, 16, 16},
+        origin   = {0.5, 0.5},
+        relative = {0.5, 0.5,  0,  0},
+    }, {}, gui.List_Layout {
+        direction = .ROW,
+        between   = 8,
     })
 
-    /* 2 */ gui.append_child(state, 1, gui.Element {
-        layout = gui.List_Layout {
-            direction = .COL,
-            between   = 8,
-            stretch   = true,
-        },
-        relative = {0.5, 0.5, 0, 0},
-        origin   = {0.5, 0.5},
-        offset   = {0, 0, 8, 8},
-        fill     = {255, 255, 255, 255},
-    })
+    /* 3 */ gui.append_child(state, 2, {
+        offset = {0, 0, 100, 100},
+    }, {
+        fill = {192, 112, 112, 255},
+    }, nil)
 
-    /* 3 */ gui.append_child(state, 2, gui.Element {
-        relative = {0.5, 0.5, 0, 0},
-        origin   = {0.5, 0.5},
-        offset   = {0, 0, 96, 16},
-        fill     = {96, 0, 0, 255},
-        border   = {255, 255, 255, 255},
-    })
+    /* 4 */ gui.append_child(state, 2, {
+        offset = {0, 0, 100, 100},
+    }, {
+        fill = {192, 192, 112, 255},
+    }, nil)
 
-    /* 4 */ gui.append_child(state, 2, gui.Element {
-        relative = {0.5, 0.5, 0, 0},
-        origin   = {0.5, 0.5},
-        offset   = {0, 0, 96, 32},
-        fill     = {96, 96, 0, 255},
-        border   = {255, 255, 255, 255},
-    })
+    /* 5 */ gui.append_child(state, 2, {
+        offset = {0, 0, 100, 100},
+    }, {
+        fill = {112, 192, 112, 255},
+    }, nil)
 
-    /* 5 */ gui.append_child(state, 2, gui.Element {
-        relative = {0.5, 0.5, 0, 0},
-        origin   = {0.5, 0.5},
-        offset   = {0, 0, 96, 32},
-        fill     = {0, 96, 0, 255},
-        border   = {255, 255, 255, 255},
-    })
+    /* 6 */ gui.append_child(state, 2, {
+        offset = {0, 0, 100, 100},
+    }, {
+        fill = {112, 192, 192, 255},
+    }, nil)
 
-    /* 6 */ gui.append_child(state, 2, gui.Element {
-        relative = {0.5, 0.5, 0, 0},
-        origin   = {0.5, 0.5},
-        offset   = {0, 0, 96, 32},
-        fill     = {0, 96, 96, 255},
-        border   = {255, 255, 255, 255},
-    })
+    /* 7 */ gui.append_child(state, 2, {
+        offset = {0, 0, 100, 100},
+    }, {
+        fill = {112, 112, 192, 255},
+    }, nil)
 
-    /* 7 */ gui.append_child(state, 2, gui.Element {
-        relative = {0.5, 0.5, 0, 0},
-        origin   = {0.5, 0.5},
-        offset   = {0, 0, 96, 16},
-        fill     = {0, 0, 96, 255},
-        border   = {255, 255, 255, 255},
-    })
-
-    /* 8 */ gui.append_child(state, 2, gui.Element {
-        relative = {0.5, 0.5, 0, 0},
-        origin   = {0.5, 0.5},
-        offset   = {0, 0, 96, 32},
-        fill     = {96, 0, 96, 255},
-        border   = {255, 255, 255, 255},
-    })
+    /* 8 */ gui.append_child(state, 2, {
+        offset = {0, 0, 100, 100},
+    }, {
+        fill = {192, 112, 192, 255},
+    }, nil)
 }
 
 flex :: proc(state: ^gui.State)
 {
-    /* 1 */ gui.append_child(state, 0, gui.Element {
+    /* 1 */ gui.append_child(state, 0, {}, {
         fill = {32, 32, 32, 255},
-    })
+    }, nil)
 
-    /* 2 */ gui.append_child(state, 1, gui.Element {
-        layout = gui.Flex_Layout {
-            direction = .COL,
-            placement = .ALIGN_END,
-            between   = 8,
-            stretch   = true,
-        },
-        relative = {0, 0.5, 0.33, 1},
-        origin   = {0, 0.5},
-        offset   = {8, 0, -16, -16}
-    })
-
-    /* 3 */ gui.append_child(state, 2, gui.Element {
-        relative = {0.5, 0.5, 0.5, 0.5},
+    /* 2 */ gui.append_child(state, 1, {
+        offset   = {  8,   8, 16,  16},
         origin   = {0.5, 0.5},
-        fill     = {128, 96, 96, 255},
+        relative = {0.5, 0.5,  1, 0.2},
+    }, {}, gui.Flex_Layout {
+        direction = .ROW,
+        placement = .SPACE_APART,
+        between   = 8,
+        stretch   = true,
     })
 
-    /* 4 */ gui.append_child(state, 2, gui.Element {
-        relative = {0.5, 0.5, 0.5, 0.5},
-        origin   = {0.5, 0.5},
-        fill     = {128, 128, 96, 255},
-    })
+    /* 3 */ gui.append_child(state, 2, {
+        offset = {0, 0, 100, 100},
+    }, {
+        fill = {192, 112, 112, 255},
+    }, nil)
 
-    /* 5 */ gui.append_child(state, 2, gui.Element {
-        relative = {0.5, 0.5, 0.5, 0.5},
-        origin   = {0.5, 0.5},
-        fill     = {96, 128, 96, 255},
-    })
+    /* 4 */ gui.append_child(state, 2, {
+        offset = {0, 0, 100, 100},
+    }, {
+        fill = {192, 192, 112, 255},
+    }, nil)
 
-    /* 6 */ gui.append_child(state, 2, gui.Element {
-        relative = {0.5, 0.5, 0.5, 0.5},
-        origin   = {0.5, 0.5},
-        fill     = {96, 128, 128, 255},
-    })
+    /* 5 */ gui.append_child(state, 2, {
+        offset = {0, 0, 100, 100},
+    }, {
+        fill = {112, 192, 112, 255},
+    }, nil)
 
-    /* 7 */ gui.append_child(state, 2, gui.Element {
-        relative = {0.5, 0.5, 0.5, 0.5},
-        origin   = {0.5, 0.5},
-        fill     = {96, 96, 128, 255},
-    })
+    /* 6 */ gui.append_child(state, 2, {
+        offset = {0, 0, 100, 100},
+    }, {
+        fill = {112, 192, 192, 255},
+    }, nil)
 
-    /* 8 */ gui.append_child(state, 2, gui.Element {
-        relative = {0.5, 0.5, 0.5, 0.5},
-        origin   = {0.5, 0.5},
-        fill     = {148, 112, 148, 255},
-    })
+    /* 7 */ gui.append_child(state, 2, {
+        offset = {0, 0, 100, 100},
+    }, {
+        fill = {112, 112, 192, 255},
+    }, nil)
+
+    /* 8 */ gui.append_child(state, 2, {
+        offset = {0, 0, 100, 100},
+    }, {
+        fill = {192, 112, 192, 255},
+    }, nil)
 }
 
 main :: proc()
@@ -136,8 +121,11 @@ main :: proc()
 
     flex(&state)
 
-    gui.update_layout(&state, 1, {1280, 720})
+    elem := gui.find(&state, 3)
 
+    gui.update_layout(&state, {1280, 720})
+
+    rl.SetTraceLogLevel(.NONE)
     rl.SetWindowState({.WINDOW_RESIZABLE})
     rl.InitWindow(1280, 720, "GUI")
 
@@ -150,14 +138,14 @@ main :: proc()
                 f32(rl.GetScreenHeight()),
             }
 
-            gui.update_layout(&state, 1, size)
+            gui.update_layout(&state, size)
         }
 
-        gui.update_mouse_focus(&state, 1, rl.GetMousePosition())
+        gui.update_hover(&state, rl.GetMousePosition())
 
-        gui.update_keyboard_focus(&state, 1, {
-            rl.IsKeyReleased(.LEFT),
+        gui.update_focus(&state, {
             rl.IsKeyReleased(.RIGHT),
+            rl.IsKeyReleased(.LEFT),
         })
 
         rl.ClearBackground(rl.Color {})
@@ -165,22 +153,34 @@ main :: proc()
         rl.BeginDrawing()
         rl.BeginMode2D(camera)
 
-        for &elem, index in state.values {
+        for &elem, index in state.elems {
             fill := rl.Color {
-                elem.fill.r,
-                elem.fill.g,
-                elem.fill.b,
-                elem.fill.a,
+                elem.color.fill.r,
+                elem.color.fill.g,
+                elem.color.fill.b,
+                elem.color.fill.a,
+            }
+
+            border := rl.Color {
+                elem.color.border.r,
+                elem.color.border.g,
+                elem.color.border.b,
+                elem.color.border.a,
             }
 
             rect := rl.Rectangle {
-                elem.absolute.x,
-                elem.absolute.y,
-                elem.absolute.z,
-                elem.absolute.w,
+                elem.shape.absolute.x,
+                elem.shape.absolute.y,
+                elem.shape.absolute.z,
+                elem.shape.absolute.w,
             }
 
             rl.DrawRectangleRec(rect, fill)
+            rl.DrawRectangleLinesEx(rect, 2, border)
+
+            if index + 1 == state.focus {
+                rl.DrawRectangleLinesEx(rect, 2, {255, 255, 255, 255})
+            }
         }
 
         rl.EndMode2D()

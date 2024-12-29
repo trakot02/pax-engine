@@ -2,30 +2,20 @@ package gui
 
 import "core:log"
 
-State :: struct
-{
-    //
-    // Tracks which element is focused by the keyboard. If zero no element
-    // has keyboard focus.
-    //
-    keyboard_focus: int,
+import ".."
 
-    //
-    // Tracks which element is focused by the mouse. If zero no element has
-    // mouse focus.
-    //
-    mouse_focus: ^Element,
+import rl "vendor:raylib"
 
-    //
-    // Contains all the elements.
-    //
-    values: [dynamic]Element,
-}
+//
+//
+// Definitions.
+//
+//
 
 Node :: struct
 {
     //
-    // Pointer to the node's parent. If zero the node is a root.
+    // Pointer to the node's parent. If zero, the node is a root.
     //
     parent: int,
 
@@ -42,13 +32,13 @@ Node :: struct
     last: int,
 
     //
-    // Pointer to the node's previous brother. If zero the node is the first
+    // Pointer to the node's previous brother. If zero, the node is the first
     // child of its parent.
     //
     prev: int,
 
     //
-    // Pointer to the node's next brother. If zero the node is the last child
+    // Pointer to the node's next brother. If zero, the node is the last child
     // of its parent.
     //
     next: int,
@@ -57,54 +47,96 @@ Node :: struct
 Shape :: struct
 {
     //
+    // Fixed offsets used to compute an element's absolute bounds.
     //
-    //
-    absolute: [4]f32,
+    offset: [4]f32,
 
     //
+    // Point around which the element's bounds are computed. Especially useful
+    // to center or align an element to a specific side of its parent. If the
+    // element has no parent, "origin" has no meaning.
     //
-    //
-    relative: [4]f32,
-
-    //
-    //
+    // Note: Each layout can apply a different meaning to "origin", so refer to
+    //       that layout's specific notes.
     //
     origin: [2]f32,
 
     //
+    // Bounds relative to the element's parent. If the element has no parent,
+    // "relative" has no meaning.
     //
+    // Note: Each layout can apply a different meaning to "relative", so refer
+    //       to that layout's specific notes.
     //
-    offset: [4]f32,
+    relative: [4]f32,
+
+    //
+    // Absolute bounds computed by the system used to draw and interact with
+    // the element.
+    //
+    // Note: These bounds shouldn't be manually altered.
+    //
+    absolute: [4]f32,
 }
 
 Color :: struct
 {
     //
-    //
+    // Color applied to the element's border.
     //
     border: [4]u8,
 
     //
-    //
+    // Color applied to the element's inside.
     //
     fill: [4]u8,
 
     //
-    //
+    // Color applied to the element's text.
     //
     text: [4]u8,
 }
 
+Layout :: union
+{
+    List_Layout, Flex_Layout,
+}
+
 Element :: struct
 {
-    using shape: Shape,
-    using color: Color,
-    using node:  Node,
+    node:   Node,
+    shape:  Shape,
+    color:  Color,
+    layout: Layout,
+}
+
+State :: struct
+{
+    //
+    // Tracks which element is the root.
+    //
+    root: int,
 
     //
-    // If present, changes how the element behaves.
+    // Tracks which element is focused. If zero, no element is focused.
     //
-    layout: Layout,
+    // For example focus can be gained by an element when it gets clicked
+    // with a mouse button or after tab is released.
+    //
+    focus: int,
+
+    //
+    // Tracks which element is hovered. If zero, no element is hovered.
+    //
+    // For example hover can be gained by an element when the mouse enters
+    // its bounds or when the same happens using a controller's stick.
+    //
+    hover: int,
+
+    //
+    //
+    //
+    elems: [dynamic]Element,
 }
 
 Direction :: enum
@@ -115,7 +147,7 @@ Direction :: enum
 Placement :: enum
 {
     //
-    // Each child is placed tightly at the start of the container.
+    // Each child is placed tightly at the beginning of the container.
     //
     ALIGN_BEGIN,
 
@@ -130,28 +162,33 @@ Placement :: enum
     ALIGN_CENTER,
 
     //
+    // Each child is placed at the maximum possible distance from
+    // its brothers.
+    //
+    SPACE_APART,
+
+    //
+    // Each child is placed at the maximum possible distance from
+    // its brothers and the cointainer's sides.
+    //
+    SPACE_EVENLY,
+
+    //
+    // Each child is placed with the maximum possible space around
+    // both its sides.
+    //
+    SPACE_AROUND,
+
+    //
     // Each child fills its own portion of the container.
     //
     FILL,
 }
 
-Layout :: union
-{
-    //
-    //
-    //
-    List_Layout,
-
-    //
-    //
-    //
-    Flex_Layout,
-}
-
 List_Layout :: struct
 {
     //
-    // Direction of the list container.
+    // Direction of the container.
     //
     direction: Direction,
 
@@ -159,24 +196,17 @@ List_Layout :: struct
     // Space in pixels between each child.
     //
     between: f32,
-
-    //
-    // If true, each child stretches in the opposite direction
-    // of the container. In other words if the list grows vertically
-    // each element stretches horizontally, and the other way around.
-    //
-    stretch: bool,
 }
 
 Flex_Layout :: struct
 {
     //
-    // Direction of the flex container.
+    // Direction of the container.
     //
     direction: Direction,
 
     //
-    // Defines how each child should be placed.
+    // Defines how each child should be placed in the direction of the container.
     //
     placement: Placement,
 
@@ -186,55 +216,81 @@ Flex_Layout :: struct
     between: f32,
 
     //
-    // If true, each child stretches in the opposite direction
-    // of the container. In other words if the list grows vertically
-    // each element stretches horizontally, and the other way around.
+    // If true, each child stretches in the opposite direction of the container.
+    // In other words if the list grows vertically each element stretches
+    // horizontally, and the other way around.
+    //
+    // Note: This overrides every shape's size constraints in the stretching
+    //       direction.
     //
     stretch: bool,
 }
 
 //
 //
+// Implementation.
 //
-init :: proc(self: ^State, allocator := context.allocator)
+//
+
+//
+//
+//
+init :: proc(state: ^State, allocator := context.allocator)
 {
-    self.values = make([dynamic]Element, allocator)
+    state.root  = 1
+    state.elems = make([dynamic]Element, allocator)
 }
 
 //
 //
 //
-destroy :: proc(self: ^State)
+destroy :: proc(state: ^State)
 {
-    delete(self.values)
+    delete(state.elems)
 
-    self.keyboard_focus = 0
-    self.mouse_focus    = nil
-    self.values         = {}
+    state.root  = 0
+    state.focus = 0
+    state.hover = 0
+    state.elems = {}
 }
 
 //
 //
 //
-find :: proc(self: ^State, elem: int) -> ^Element
+append_child :: proc(state: ^State, parent: int, shape: Shape, color: Color, layout: Layout) -> int
 {
-    if elem <= 0 || elem > len(self.values) {
-        return nil
+    count := len(state.elems)
+
+    if parent < 0 || parent > count { return 0 }
+
+    _, error := assign_at(&state.elems, count, Element {
+        shape = shape, color = color, layout = layout, node = {
+            parent = parent
+        },
+    })
+
+    if error != nil {
+        log.errorf("Unable to insert element %v, %v, %v",
+            shape, color, layout)
+
+        return 0
     }
 
-    return &self.values[elem - 1]
-}
+    count += 1
+    self  := find(state, count)
 
-children :: proc(self: ^State, elem: ^Element) -> int
-{
-    count := 0
+    if self == nil { return 0 }
 
-    if elem == nil { return count }
+    if self.node.parent != 0 {
+        parent := find(state, self.node.parent)
+        prev   := find(state, parent.node.last)
+        first  := find(state, parent.node.first)
 
-    child := find(self, elem.first)
+        if first == nil { parent.node.first = count }
+        if prev  != nil { prev.node.next    = count }
 
-    for ; child != nil; count += 1 {
-        child = find(self, child.next)
+        self.node.prev   = parent.node.last
+        parent.node.last = count
     }
 
     return count
@@ -243,43 +299,30 @@ children :: proc(self: ^State, elem: ^Element) -> int
 //
 //
 //
-append_child :: proc(self: ^State, parent: int, element: Element) -> (int, bool)
+find :: proc(state: ^State, elem: int) -> ^Element
 {
-    if parent < 0 || parent > len(self.values) {
-        return 0, false
+    if 0 < elem && elem <= len(state.elems) {
+        return &state.elems[elem - 1]
     }
 
-    index    := len(self.values)
-    _, error := append(&self.values, element)
+    return nil
+}
 
-    if error != nil {
-        log.errorf("Unable to insert element %v",
-            element)
+//
+//
+//
+children :: proc(state: ^State, self: ^Element) -> int
+{
+    if self == nil { return 0 }
 
-        return 0, false
+    child := find(state, self.node.first)
+    count := 0
+
+    for ; child != nil; count += 1 {
+        child = find(state, child.node.next)
     }
 
-    elem        := &self.values[index]
-    elem.parent  = parent
-
-    if 0 < elem.parent && elem.parent <= len(self.values) {
-        parent := &self.values[elem.parent - 1]
-
-        if parent.first <= 0 || parent.first > len(self.values) {
-            parent.first = index + 1
-        }
-
-        if 0 < parent.last && parent.last <= len(self.values) {
-            prev := &self.values[parent.last - 1]
-
-            prev.next = index + 1
-        }
-
-        elem.prev   = parent.last
-        parent.last = index + 1
-    }
-
-    return index + 1, true
+    return count + 1
 }
 
 //
@@ -289,13 +332,13 @@ compute_base_size :: proc(state: ^State, self: ^Element)
 {
     if self == nil { return }
 
-    parent := find(state, self.parent)
+    parent := find(state, self.node.parent)
 
-    self.absolute.zw = self.offset.zw
+    self.shape.absolute.zw = self.shape.offset.zw
 
     if parent != nil {
-        self.absolute.zw += parent.absolute.zw *
-            self.relative.zw
+        self.shape.absolute.zw += parent.shape.absolute.zw *
+            self.shape.relative.zw
     }
 }
 
@@ -306,27 +349,27 @@ compute_base_pos :: proc(state: ^State, self: ^Element)
 {
     if self == nil { return }
 
-    parent := find(state, self.parent)
+    parent := find(state, self.node.parent)
 
-    self.absolute.xy  = self.offset.xy
-    self.absolute.xy -= self.origin * self.absolute.zw
+    self.shape.absolute.xy  = self.shape.offset.xy
+    self.shape.absolute.xy -= self.shape.origin * self.shape.absolute.zw
 
     if parent != nil {
-        self.absolute.xy += parent.absolute.zw *
-            self.relative.xy + parent.absolute.xy
+        self.shape.absolute.xy += parent.shape.absolute.zw *
+            self.shape.relative.xy + parent.shape.absolute.xy
     }
 }
 
 //
 //
 //
-compute_child_size :: proc(state: ^State, self: ^Element)
+compute_tree_size :: proc(state: ^State, self: ^Element)
 {
     if self == nil { return }
 
-    child := find(state, self.first)
+    child := find(state, self.node.first)
 
-    for ; child != nil; child = find(state, child.next) {
+    for ; child != nil; child = find(state, child.node.next) {
         compute_size(state, child)
     }
 }
@@ -334,13 +377,13 @@ compute_child_size :: proc(state: ^State, self: ^Element)
 //
 //
 //
-compute_child_pos :: proc(state: ^State, self: ^Element)
+compute_tree_pos :: proc(state: ^State, self: ^Element)
 {
     if self == nil { return }
 
-    child := find(state, self.first)
+    child := find(state, self.node.first)
 
-    for ; child != nil; child = find(state, child.next) {
+    for ; child != nil; child = find(state, child.node.next) {
         compute_pos(state, child)
     }
 }
@@ -352,22 +395,22 @@ compute_list_size :: proc(state: ^State, self: ^Element, layout: ^List_Layout)
 {
     if self == nil { return }
 
-    rect  := self.absolute
-    child := find(state, self.first)
+    rect  := self.shape.absolute
+    child := find(state, self.node.first)
     count := 0
 
-    for ; child != nil; child = find(state, child.next) {
+    for ; child != nil; child = find(state, child.node.next) {
         compute_size(state, child)
 
         switch layout.direction {
             case .COL: {
-                rect.w += child.absolute.w
-                rect.z  = max(rect.z, child.absolute.z)
+                rect.w += child.shape.absolute.w
+                rect.z  = max(rect.z, child.shape.absolute.z)
             }
 
             case .ROW: {
-                rect.z += child.absolute.z
-                rect.w  = max(rect.w, child.absolute.w)
+                rect.z += child.shape.absolute.z
+                rect.w  = max(rect.w, child.shape.absolute.w)
             }
         }
 
@@ -381,18 +424,7 @@ compute_list_size :: proc(state: ^State, self: ^Element, layout: ^List_Layout)
         }
     }
 
-    if layout.stretch == true {
-        child = find(state, self.first)
-
-        for ; child != nil; child = find(state, child.next) {
-            switch layout.direction {
-                case .COL: child.absolute.z = rect.z
-                case .ROW: child.absolute.w = rect.w
-            }
-        }
-    }
-
-    self.absolute.zw = rect.zw
+    self.shape.absolute.zw = rect.zw
 }
 
 //
@@ -404,31 +436,31 @@ compute_list_pos :: proc(state: ^State, self: ^Element, layout: ^List_Layout)
 
     compute_base_pos(state, self)
 
-    rect  := self.absolute
-    child := find(state, self.first)
+    rect  := self.shape.absolute
+    child := find(state, self.node.first)
 
-    for ; child != nil; child = find(state, child.next) {
-        child.absolute.xy = rect.xy
+    for ; child != nil; child = find(state, child.node.next) {
+        child.shape.absolute.xy = rect.xy
 
         switch layout.direction {
             case .COL: {
-                child.absolute.x -= child.origin.x   * child.absolute.z
-                child.absolute.x += child.relative.x * self.absolute.z
+                child.shape.absolute.x -= child.shape.origin.x   * child.shape.absolute.z
+                child.shape.absolute.x += child.shape.relative.x * self.shape.absolute.z
 
-                rect.y  = child.absolute.y
-                rect.y += child.absolute.w + layout.between
+                rect.y  = child.shape.absolute.y
+                rect.y += child.shape.absolute.w + layout.between
             }
 
             case .ROW: {
-                child.absolute.y -= child.origin.y   * child.absolute.w
-                child.absolute.y += child.relative.y * self.absolute.w
+                child.shape.absolute.y -= child.shape.origin.y   * child.shape.absolute.w
+                child.shape.absolute.y += child.shape.relative.y * self.shape.absolute.w
 
-                rect.x  = child.absolute.x
-                rect.x += child.absolute.z + layout.between
+                rect.x  = child.shape.absolute.x
+                rect.x += child.shape.absolute.z + layout.between
             }
         }
 
-        compute_child_pos(state, child)
+        compute_tree_pos(state, child)
     }
 }
 
@@ -438,7 +470,7 @@ compute_flex_size :: proc(state: ^State, self: ^Element, layout: ^Flex_Layout)
 
     compute_base_size(state, self)
 
-    part  := self.absolute
+    part  := self.shape.absolute
     count := children(state, self)
 
     if count > 1 {
@@ -455,26 +487,27 @@ compute_flex_size :: proc(state: ^State, self: ^Element, layout: ^Flex_Layout)
         }
     }
 
-    child := find(state, self.first)
+    child := find(state, self.node.first)
 
-    for ; child != nil; child = find(state, child.next) {
-        child.absolute.zw = child.offset.zw + part.zw * child.relative.zw
+    for ; child != nil; child = find(state, child.node.next) {
+        child.shape.absolute.zw = child.shape.offset.zw + part.zw *
+            child.shape.relative.zw
 
         if layout.placement == .FILL {
             switch layout.direction {
-                case .COL: child.absolute.w = part.w
-                case .ROW: child.absolute.z = part.z
+                case .COL: child.shape.absolute.w = part.w
+                case .ROW: child.shape.absolute.z = part.z
             }
         }
     }
 
     if layout.stretch == true {
-        child = find(state, self.first)
+        child = find(state, self.node.first)
 
-        for ; child != nil; child = find(state, child.next) {
+        for ; child != nil; child = find(state, child.node.next) {
             switch layout.direction {
-                case .COL: child.absolute.z = part.z
-                case .ROW: child.absolute.w = part.w
+                case .COL: child.shape.absolute.z = part.z
+                case .ROW: child.shape.absolute.w = part.w
             }
         }
     }
@@ -489,48 +522,128 @@ compute_flex_pos :: proc(state: ^State, self: ^Element, layout: ^Flex_Layout)
 
     compute_base_pos(state, self)
 
-    part  := self.absolute
-    child := find(state, self.first)
+    part  := self.shape.absolute
+    child := find(state, self.node.first)
+    count := 0
 
-    for ; child != nil; child = find(state, child.next) {
-        child.absolute.xy = part.xy
+    for ; child != nil; child = find(state, child.node.next) {
+        child.shape.absolute.xy = part.xy
 
         switch layout.direction {
             case .COL: {
-                child.absolute.x -= child.origin.x   * child.absolute.z
-                child.absolute.x += child.relative.x * self.absolute.z
+                child.shape.absolute.x -= child.shape.origin.x   * child.shape.absolute.z
+                child.shape.absolute.x += child.shape.relative.x * self.shape.absolute.z
 
-                part.y  = child.absolute.y
-                part.y += child.absolute.w + layout.between
+                part.y  = child.shape.absolute.y
+                part.y += child.shape.absolute.w + layout.between
             }
 
             case .ROW: {
-                child.absolute.y -= child.origin.y   * child.absolute.w
-                child.absolute.y += child.relative.y * self.absolute.w
+                child.shape.absolute.y -= child.shape.origin.y   * child.shape.absolute.w
+                child.shape.absolute.y += child.shape.relative.y * self.shape.absolute.w
 
-                part.x  = child.absolute.x
-                part.x += child.absolute.z + layout.between
+                part.x  = child.shape.absolute.x
+                part.x += child.shape.absolute.z + layout.between
             }
         }
+
+        count += 1
     }
 
-    child = find(state, self.last)
+    child = find(state, self.node.last)
 
     if child == nil { return }
 
-    offset := self.absolute.xy + self.absolute.zw - child.absolute.xy - child.absolute.zw
-    child   = find(state, self.first)
+    align := self.shape.absolute.xy + self.shape.absolute.zw -
+        child.shape.absolute.xy - child.shape.absolute.zw
 
-    for ; child != nil; child = find(state, child.next) {
-        #partial switch layout.placement {
-            case .ALIGN_CENTER: switch layout.direction {
-                case .COL: child.absolute.y += offset.y / 2
-                case .ROW: child.absolute.x += offset.x / 2
+    child = find(state, self.node.first)
+
+    #partial switch layout.placement {
+        case .ALIGN_CENTER: {
+            for ; child != nil; child = find(state, child.node.next) {
+                switch layout.direction {
+                    case .COL: child.shape.absolute.y += align.y / 2
+                    case .ROW: child.shape.absolute.x += align.x / 2
+                }
             }
+        }
 
-            case .ALIGN_END: switch layout.direction {
-                case .COL: child.absolute.y += offset.y
-                case .ROW: child.absolute.x += offset.x
+        case .ALIGN_END: {
+            for ; child != nil; child = find(state, child.node.next) {
+                switch layout.direction {
+                    case .COL: child.shape.absolute.y += align.y
+                    case .ROW: child.shape.absolute.x += align.x
+                }
+            }
+        }
+
+        case .SPACE_APART: {
+            align /= f32(count - 1)
+            space := child.shape.absolute.xy
+
+            for ; child != nil; child = find(state, child.node.next) {
+                switch layout.direction {
+                    case .COL: {
+                        child.shape.absolute.y = space.y
+
+                        space.y += child.shape.absolute.w + align.y
+                        space.y += layout.between
+                    }
+
+                    case .ROW: {
+                        child.shape.absolute.x = space.x
+
+                        space.x += child.shape.absolute.z + align.x
+                        space.x += layout.between
+                    }
+                }
+            }
+        }
+
+        case .SPACE_EVENLY: {
+            align /= f32(count + 1)
+            space := child.shape.absolute.xy + align
+
+            for ; child != nil; child = find(state, child.node.next) {
+                switch layout.direction {
+                    case .COL: {
+                        child.shape.absolute.y = space.y
+
+                        space.y += child.shape.absolute.w + align.y
+                        space.y += layout.between
+                    }
+
+                    case .ROW: {
+                        child.shape.absolute.x = space.x
+
+                        space.x += child.shape.absolute.z + align.x
+                        space.x += layout.between
+                    }
+                }
+            }
+        }
+
+        case .SPACE_AROUND: {
+            align /= f32(count * 2)
+            space := child.shape.absolute.xy + align
+
+            for ; child != nil; child = find(state, child.node.next) {
+                switch layout.direction {
+                    case .COL: {
+                        child.shape.absolute.y = space.y
+
+                        space.y += child.shape.absolute.w + align.y * 2
+                        space.y += layout.between
+                    }
+
+                    case .ROW: {
+                        child.shape.absolute.x = space.x
+
+                        space.x += child.shape.absolute.z + align.x * 2
+                        space.x += layout.between
+                    }
+                }
             }
         }
     }
@@ -549,7 +662,7 @@ compute_size :: proc(state: ^State, self: ^Element)
 
         case nil: {
             compute_base_size(state, self)
-            compute_child_size(state, self)
+            compute_tree_size(state, self)
         }
     }
 }
@@ -567,7 +680,7 @@ compute_pos :: proc(state: ^State, self: ^Element)
 
         case nil: {
             compute_base_pos(state, self)
-            compute_child_pos(state, self)
+            compute_tree_pos(state, self)
         }
     }
 }
@@ -575,16 +688,12 @@ compute_pos :: proc(state: ^State, self: ^Element)
 //
 //
 //
-update_layout :: proc(state: ^State, root: int, size: [2]f32)
+update_layout :: proc(state: ^State, size: [2]f32)
 {
-    self := find(state, root)
+    self := find(state, state.root)
 
     if self != nil {
-        parent := find(state, self.parent)
-
-        assert(parent == nil, "Given element is not root")
-
-        self.offset.zw = size
+        self.shape.offset.zw = size
 
         compute_size(state, self)
         compute_pos(state, self)
@@ -594,19 +703,25 @@ update_layout :: proc(state: ^State, root: int, size: [2]f32)
 //
 //
 //
-set_mouse_focus :: proc(state: ^State, self: ^Element, point: [2]f32) -> bool
+compute_hover :: proc(state: ^State, self: ^Element, index: int, point: [2]f32) -> bool
 {
     if self == nil { return false }
 
-    point_in_rect(self.absolute, point) or_return
+    point_in_rect(self.shape.absolute, point) or_return
 
-    child := find(state, self.first)
+    other := self.node.first
+    child := find(state, other)
 
-    for ; child != nil; child = find(state, child.next) {
-        if set_mouse_focus(state, child, point) { return true }
+    for child != nil {
+        if compute_hover(state, child, other, point) {
+            return true
+        }
+
+        other = child.node.next
+        child = find(state, other)
     }
 
-    state.mouse_focus = self
+    state.hover = index
 
     return true
 }
@@ -614,39 +729,28 @@ set_mouse_focus :: proc(state: ^State, self: ^Element, point: [2]f32) -> bool
 //
 //
 //
-update_mouse_focus :: proc(state: ^State, root: int, point: [2]f32)
+update_hover :: proc(state: ^State, point: [2]f32)
 {
-    self := find(state, root)
+    self := find(state, state.root)
+
+    state.hover = 0
 
     if self != nil {
-        parent := find(state, self.parent)
-
-        assert(parent == nil, "Given element is not root")
-
-        state.mouse_focus = nil
-
-        set_mouse_focus(state, self, point)
+        compute_hover(state, self, state.root, point)
     }
 }
 
 //
 //
 //
-update_keyboard_focus :: proc(state: ^State, root: int, step: [2]bool)
+update_focus :: proc(state: ^State, step: [2]bool)
 {
-    self := find(state, root)
+    focus := state.focus
 
-    if self != nil {
-        parent := find(state, self.parent)
+    focus = min(focus + int(step.x), len(state.elems))
+    focus = max(focus - int(step.y), 1)
 
-        assert(parent == nil, "Given element is not root")
-
-        state.keyboard_focus += int(step.y)
-        state.keyboard_focus  = min(state.keyboard_focus, len(state.values))
-
-        state.keyboard_focus -= int(step.x)
-        state.keyboard_focus  = max(state.keyboard_focus, 1)
-    }
+    state.focus = focus
 }
 
 //
