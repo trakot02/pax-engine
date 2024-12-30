@@ -9,108 +9,144 @@ import pax "../pax"
 
 list :: proc(state: ^gui.State)
 {
-    /* 1 */ gui.append_child(state, 0, {}, {
-        fill = {32, 32, 32, 255},
-    }, nil)
+    /* 1 */ gui.append_child(state, 0, {})
 
     /* 2 */ gui.append_child(state, 1, {
-        offset   = {  8,   8, 16, 16},
-        origin   = {0.5, 0.5},
-        relative = {0.5, 0.5,  0,  0},
-    }, {}, gui.List_Layout {
-        direction = .ROW,
-        between   = 8,
+        shape = {
+            origin   = {0.5, 0.5},
+            relative = {0.5, 0.5, 0, 0},
+        },
+        layout = gui.List_Layout {
+            direction = .ROW,
+            between   = 8,
+        },
     })
 
     /* 3 */ gui.append_child(state, 2, {
-        offset = {0, 0, 100, 100},
-    }, {
-        fill = {192, 112, 112, 255},
-    }, nil)
+        shape = {
+            offset = {0, 0, 100, 50},
+        },
+        color = {
+            fill = {192, 112, 112, 255},
+        },
+    })
 
     /* 4 */ gui.append_child(state, 2, {
-        offset = {0, 0, 100, 100},
-    }, {
-        fill = {192, 192, 112, 255},
-    }, nil)
+        shape = {
+            offset = {0, 0, 100, 50},
+        },
+        color = {
+            fill = {192, 192, 112, 255},
+        },
+    })
 
     /* 5 */ gui.append_child(state, 2, {
-        offset = {0, 0, 100, 100},
-    }, {
-        fill = {112, 192, 112, 255},
-    }, nil)
+        shape = {
+            offset = {0, 0, 100, 50},
+        },
+        color = {
+            fill = {112, 192, 112, 255},
+        },
+    })
 
     /* 6 */ gui.append_child(state, 2, {
-        offset = {0, 0, 100, 100},
-    }, {
-        fill = {112, 192, 192, 255},
-    }, nil)
+        shape = {
+            offset = {0, 0, 100, 50},
+        },
+        color = {
+            fill = {112, 192, 192, 255},
+        },
+    })
 
     /* 7 */ gui.append_child(state, 2, {
-        offset = {0, 0, 100, 100},
-    }, {
-        fill = {112, 112, 192, 255},
-    }, nil)
+        shape = {
+            offset = {0, 0, 100, 50},
+        },
+        color = {
+            fill = {112, 112, 192, 255},
+        },
+    })
 
     /* 8 */ gui.append_child(state, 2, {
-        offset = {0, 0, 100, 100},
-    }, {
-        fill = {192, 112, 192, 255},
-    }, nil)
+        shape = {
+            offset = {0, 0, 100, 50},
+        },
+        color = {
+            fill = {192, 112, 192, 255},
+        },
+    })
 }
 
 flex :: proc(state: ^gui.State)
 {
-    /* 1 */ gui.append_child(state, 0, {}, {
-        fill = {32, 32, 32, 255},
-    }, nil)
+    /* 1 */ gui.append_child(state, 0, {})
 
     /* 2 */ gui.append_child(state, 1, {
-        offset   = {  8,   8, 16,  16},
-        origin   = {0.5, 0.5},
-        relative = {0.5, 0.5,  1, 0.2},
-    }, {}, gui.Flex_Layout {
-        direction = .ROW,
-        placement = .SPACE_APART,
-        between   = 8,
-        stretch   = true,
+        shape = {
+            origin   = {0, 0.5},
+            relative = {0, 0.5, 0.33, 1},
+        },
+        layout = gui.Flex_Layout {
+            direction = .COL,
+            placement = .FILL,
+            between   = 8,
+            stretch   = true,
+        }
     })
 
     /* 3 */ gui.append_child(state, 2, {
-        offset = {0, 0, 100, 100},
-    }, {
-        fill = {192, 112, 112, 255},
-    }, nil)
+        shape = {
+            offset = {0, 0, 100, 50},
+        },
+        color = {
+            fill = {192, 112, 112, 255},
+        },
+    })
 
     /* 4 */ gui.append_child(state, 2, {
-        offset = {0, 0, 100, 100},
-    }, {
-        fill = {192, 192, 112, 255},
-    }, nil)
+        shape = {
+            offset = {0, 0, 100, 50},
+        },
+        color = {
+            fill = {192, 192, 112, 255},
+        },
+    })
 
     /* 5 */ gui.append_child(state, 2, {
-        offset = {0, 0, 100, 100},
-    }, {
-        fill = {112, 192, 112, 255},
-    }, nil)
+        shape = {
+            offset = {0, 0, 100, 50},
+        },
+        color = {
+            fill = {112, 192, 112, 255},
+        },
+    })
 
     /* 6 */ gui.append_child(state, 2, {
-        offset = {0, 0, 100, 100},
-    }, {
-        fill = {112, 192, 192, 255},
-    }, nil)
+        shape = {
+            offset = {0, 0, 100, 50},
+        },
+        color = {
+            fill = {112, 192, 192, 255},
+        },
+    })
 
     /* 7 */ gui.append_child(state, 2, {
-        offset = {0, 0, 100, 100},
-    }, {
-        fill = {112, 112, 192, 255},
-    }, nil)
+        shape = {
+            offset = {0, 0, 100, 50},
+        },
+        color = {
+            fill = {112, 112, 192, 255},
+        },
+    })
 
     /* 8 */ gui.append_child(state, 2, {
-        offset = {0, 0, 100, 100},
-    }, {
-        fill = {192, 112, 192, 255},
-    }, nil)
+        shape = {
+            offset = {0, 0, 100, 50},
+        },
+        color = {
+            fill = {192, 112, 192, 255},
+        },
+    })
 }
 
 main :: proc()
@@ -119,7 +155,7 @@ main :: proc()
 
     gui.init(&state)
 
-    flex(&state)
+    list(&state)
 
     elem := gui.find(&state, 3)
 
@@ -144,8 +180,8 @@ main :: proc()
         gui.update_hover(&state, rl.GetMousePosition())
 
         gui.update_focus(&state, {
-            rl.IsKeyReleased(.RIGHT),
-            rl.IsKeyReleased(.LEFT),
+            rl.IsKeyReleased(.RIGHT) || rl.IsKeyReleased(.D),
+            rl.IsKeyReleased(.LEFT)  || rl.IsMouseButtonReleased(.RIGHT),
         })
 
         rl.ClearBackground(rl.Color {})
@@ -176,10 +212,13 @@ main :: proc()
             }
 
             rl.DrawRectangleRec(rect, fill)
-            rl.DrawRectangleLinesEx(rect, 2, border)
 
             if index + 1 == state.focus {
-                rl.DrawRectangleLinesEx(rect, 2, {255, 255, 255, 255})
+                rl.DrawRectangleLinesEx(rect, 2, border)
+            }
+
+            if index + 1 == state.hover {
+                rl.DrawRectangleLinesEx(rect, 2, border)
             }
         }
 

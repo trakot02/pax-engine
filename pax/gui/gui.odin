@@ -110,13 +110,15 @@ Element :: struct
     layout: Layout,
 }
 
+Element_Parts :: struct
+{
+    shape:  Shape,
+    color:  Color,
+    layout: Layout,
+}
+
 State :: struct
 {
-    //
-    // Tracks which element is the root.
-    //
-    root: int,
-
     //
     // Tracks which element is focused. If zero, no element is focused.
     //
@@ -134,7 +136,12 @@ State :: struct
     hover: int,
 
     //
+    // Tracks which element is the root.
     //
+    root: int,
+
+    //
+    // Contains all the elements.
     //
     elems: [dynamic]Element,
 }
@@ -257,21 +264,24 @@ destroy :: proc(state: ^State)
 //
 //
 //
-append_child :: proc(state: ^State, parent: int, shape: Shape, color: Color, layout: Layout) -> int
+append_child :: proc(state: ^State, parent: int, element: Element_Parts) -> int
 {
     count := len(state.elems)
 
     if parent < 0 || parent > count { return 0 }
 
     _, error := assign_at(&state.elems, count, Element {
-        shape = shape, color = color, layout = layout, node = {
+        node = {
             parent = parent
         },
+        shape  = element.shape,
+        color  = element.color,
+        layout = element.layout,
     })
 
     if error != nil {
-        log.errorf("Unable to insert element %v, %v, %v",
-            shape, color, layout)
+        log.errorf("Unable to insert element %v",
+            element)
 
         return 0
     }
@@ -322,7 +332,7 @@ children :: proc(state: ^State, self: ^Element) -> int
         child = find(state, child.node.next)
     }
 
-    return count + 1
+    return count
 }
 
 //
@@ -363,7 +373,7 @@ compute_base_pos :: proc(state: ^State, self: ^Element)
 //
 //
 //
-compute_tree_size :: proc(state: ^State, self: ^Element)
+compute_rec_size :: proc(state: ^State, self: ^Element)
 {
     if self == nil { return }
 
@@ -377,7 +387,7 @@ compute_tree_size :: proc(state: ^State, self: ^Element)
 //
 //
 //
-compute_tree_pos :: proc(state: ^State, self: ^Element)
+compute_rec_pos :: proc(state: ^State, self: ^Element)
 {
     if self == nil { return }
 
@@ -460,7 +470,7 @@ compute_list_pos :: proc(state: ^State, self: ^Element, layout: ^List_Layout)
             }
         }
 
-        compute_tree_pos(state, child)
+        compute_rec_pos(state, child)
     }
 }
 
@@ -662,7 +672,7 @@ compute_size :: proc(state: ^State, self: ^Element)
 
         case nil: {
             compute_base_size(state, self)
-            compute_tree_size(state, self)
+            compute_rec_size(state, self)
         }
     }
 }
@@ -680,7 +690,7 @@ compute_pos :: proc(state: ^State, self: ^Element)
 
         case nil: {
             compute_base_pos(state, self)
-            compute_tree_pos(state, self)
+            compute_rec_pos(state, self)
         }
     }
 }
