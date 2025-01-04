@@ -2,8 +2,6 @@ package pax
 
 import "core:log"
 
-Empty_Event :: struct {}
-
 Listener :: struct
 {
     //
@@ -24,6 +22,9 @@ Signal :: struct ($T: typeid)
     //
     values: [dynamic]Listener,
 }
+
+Empty_Event  :: struct {}
+Empty_Signal :: Signal(Empty_Event)
 
 //
 //

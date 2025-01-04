@@ -2,227 +2,269 @@ package test
 
 import "core:fmt"
 
-import rl "vendor:raylib"
-
-import gui "../pax/gui"
+import rl  "vendor:raylib"
 import pax "../pax"
 
-list :: proc(state: ^gui.State)
+input_move :: proc(layer: ^pax.GUI_Layer, number: int)
 {
-    /* 1 */ gui.append_child(state, 0, {})
+    handle := pax.gui_find(layer, number)
 
-    /* 2 */ gui.append_child(state, 1, {
+    pax.gui_focused(layer, number, rl.IsMouseButtonPressed(.LEFT))
+
+    pax.gui_pressed(layer, number, rl.IsMouseButtonPressed(.LEFT) ||
+        rl.IsKeyPressed(.LEFT_CONTROL) || rl.IsKeyPressed(.RIGHT_CONTROL))
+
+    pax.gui_released(layer, number, rl.IsMouseButtonReleased(.LEFT) ||
+        rl.IsKeyReleased(.LEFT_CONTROL) || rl.IsKeyReleased(.RIGHT_CONTROL))
+
+    dragged := rl.GetMouseDelta()
+
+    if pax.gui_dragged(layer, number, dragged != {}) {
+        handle.shape.offset.xy += dragged
+    }
+}
+
+input_grow :: proc(layer: ^pax.GUI_Layer, number: int)
+{
+    handle := pax.gui_find(layer, number)
+
+    pax.gui_focused(layer, number, rl.IsMouseButtonPressed(.LEFT))
+
+    pax.gui_pressed(layer, number, rl.IsMouseButtonPressed(.LEFT) ||
+        rl.IsKeyPressed(.LEFT_CONTROL) || rl.IsKeyPressed(.RIGHT_CONTROL))
+
+    pax.gui_released(layer, number, rl.IsMouseButtonReleased(.LEFT) ||
+        rl.IsKeyReleased(.LEFT_CONTROL) || rl.IsKeyReleased(.RIGHT_CONTROL))
+
+    dragged := rl.GetMouseDelta()
+
+    if pax.gui_dragged(layer, number, dragged != {}) {
+        handle.shape.offset.zw += dragged
+
+        handle.shape.offset.z = max(handle.shape.offset.z, 0)
+        handle.shape.offset.w = max(handle.shape.offset.w, 0)
+    }
+}
+
+list :: proc(layer: ^pax.GUI_Layer)
+{
+    assert(1 == pax.gui_append_root(layer, {
+        shape = {
+            color = {32, 32, 32, 255},
+        },
+    }))
+
+    assert(2 == pax.gui_append_child(layer, 1, {
         shape = {
             origin   = {0.5, 0.5},
             relative = {0.5, 0.5, 0, 0},
         },
-        layout = gui.List_Layout {
-            direction = .ROW,
+        group = pax.GUI_List_Group {
+            direction = .COL,
             between   = 8,
+            // stretch   = true,
         },
-    })
+        input = pax.gui_input_from(input_move),
+    }))
 
-    /* 3 */ gui.append_child(state, 2, {
+    assert(3 == pax.gui_append_child(layer, 2, {
         shape = {
-            offset = {0, 0, 100, 50},
+            offset = {  0,   0, 100,  50},
+            color  = {192,  64,  64, 255},
         },
-        color = {
-            fill = {192, 112, 112, 255},
-        },
-    })
+        input = pax.gui_input_from(input_grow),
+    }))
 
-    /* 4 */ gui.append_child(state, 2, {
+    assert(4 == pax.gui_append_child(layer, 2, {
         shape = {
-            offset = {0, 0, 100, 50},
+            offset = {  0,   0, 100,  50},
+            color  = {192, 192,  64, 255},
         },
-        color = {
-            fill = {192, 192, 112, 255},
-        },
-    })
+        input = pax.gui_input_from(input_grow),
+    }))
 
-    /* 5 */ gui.append_child(state, 2, {
+    assert(5 == pax.gui_append_child(layer, 2, {
         shape = {
-            offset = {0, 0, 100, 50},
+            offset = {  0,   0, 100,  50},
+            color  = { 64, 192,  64, 255},
         },
-        color = {
-            fill = {112, 192, 112, 255},
-        },
-    })
+        input = pax.gui_input_from(input_grow),
+    }))
 
-    /* 6 */ gui.append_child(state, 2, {
+    assert(6 == pax.gui_append_child(layer, 2, {
         shape = {
-            offset = {0, 0, 100, 50},
+            offset = {  0,   0, 100,  50},
+            color  = { 64, 192, 192, 255},
         },
-        color = {
-            fill = {112, 192, 192, 255},
-        },
-    })
+        input = pax.gui_input_from(input_grow),
+    }))
 
-    /* 7 */ gui.append_child(state, 2, {
+    assert(7 == pax.gui_append_child(layer, 2, {
         shape = {
-            offset = {0, 0, 100, 50},
+            offset = {  0,   0, 100,  50},
+            color  = { 64,  64, 192, 255},
         },
-        color = {
-            fill = {112, 112, 192, 255},
-        },
-    })
+        input = pax.gui_input_from(input_grow),
+    }))
 
-    /* 8 */ gui.append_child(state, 2, {
+    assert(8 == pax.gui_append_child(layer, 2, {
         shape = {
-            offset = {0, 0, 100, 50},
+            offset = {  0,   0, 100,  60},
+            color  = {192,  64, 192, 255},
         },
-        color = {
-            fill = {192, 112, 192, 255},
-        },
-    })
+        input = pax.gui_input_from(input_grow),
+    }))
 }
 
-flex :: proc(state: ^gui.State)
+flex :: proc(layer: ^pax.GUI_Layer)
 {
-    /* 1 */ gui.append_child(state, 0, {})
-
-    /* 2 */ gui.append_child(state, 1, {
+    assert(1 == pax.gui_append_root(layer, {
         shape = {
-            origin   = {0, 0.5},
-            relative = {0, 0.5, 0.33, 1},
+            color = {32, 32, 32, 255},
         },
-        layout = gui.Flex_Layout {
+    }))
+
+    assert(2 == pax.gui_append_child(layer, 1, {
+        shape = {
+            origin   = {0.5, 0.5},
+            relative = {0.5, 0.5, 0.75, 0.5},
+        },
+        group = pax.GUI_Flex_Group {
             direction = .COL,
-            placement = .FILL,
+            placement = .ALIGN_CENTER,
             between   = 8,
-            stretch   = true,
-        }
-    })
+            // stretch   = true,
+        },
+        input = pax.gui_input_from(input_move),
+    }))
 
-    /* 3 */ gui.append_child(state, 2, {
+    assert(3 == pax.gui_append_child(layer, 2, {
         shape = {
-            offset = {0, 0, 100, 50},
+            offset   = {0, 0, 100, 60},
+            origin   = {0.5, 0.5},
+            relative = {0.5, 0.5, 0, 0},
+            color    = {192, 64, 64, 255},
         },
-        color = {
-            fill = {192, 112, 112, 255},
-        },
-    })
+        input = pax.gui_input_from(input_grow),
+    }))
 
-    /* 4 */ gui.append_child(state, 2, {
+    assert(4 == pax.gui_append_child(layer, 2, {
         shape = {
-            offset = {0, 0, 100, 50},
+            offset   = {0, 0, 100, 50},
+            origin   = {0.5, 0.5},
+            relative = {0.5, 0.5, 0, 0},
+            color    = {192, 192, 64, 255},
         },
-        color = {
-            fill = {192, 192, 112, 255},
-        },
-    })
+        input = pax.gui_input_from(input_grow),
+    }))
 
-    /* 5 */ gui.append_child(state, 2, {
+    assert(5 == pax.gui_append_child(layer, 2, {
         shape = {
-            offset = {0, 0, 100, 50},
+            offset   = {0, 0, 100, 50},
+            origin   = {0.5, 0.5},
+            relative = {0.5, 0.5, 0, 0},
+            color    = {64, 192, 64, 255},
         },
-        color = {
-            fill = {112, 192, 112, 255},
-        },
-    })
+        input = pax.gui_input_from(input_grow),
+    }))
 
-    /* 6 */ gui.append_child(state, 2, {
+    assert(6 == pax.gui_append_child(layer, 2, {
         shape = {
-            offset = {0, 0, 100, 50},
+            offset   = {0, 0, 100, 50},
+            origin   = {0.5, 0.5},
+            relative = {0.5, 0.5, 0, 0},
+            color    = {64, 192, 192, 255},
         },
-        color = {
-            fill = {112, 192, 192, 255},
-        },
-    })
+        input = pax.gui_input_from(input_grow),
+    }))
 
-    /* 7 */ gui.append_child(state, 2, {
+    assert(7 == pax.gui_append_child(layer, 2, {
         shape = {
-            offset = {0, 0, 100, 50},
+            offset   = {0, 0, 100, 50},
+            origin   = {0.5, 0.5},
+            relative = {0.5, 0.5, 0, 0},
+            color    = {64, 64, 192, 255},
         },
-        color = {
-            fill = {112, 112, 192, 255},
-        },
-    })
+        input = pax.gui_input_from(input_grow),
+    }))
 
-    /* 8 */ gui.append_child(state, 2, {
+    assert(8 == pax.gui_append_child(layer, 2, {
         shape = {
-            offset = {0, 0, 100, 50},
+            offset   = {0, 0, 100, 60},
+            origin   = {0.5, 0.5},
+            relative = {0.5, 0.5, 0, 0},
+            color    = {192, 64, 192, 255},
         },
-        color = {
-            fill = {192, 112, 192, 255},
-        },
-    })
+        input = pax.gui_input_from(input_grow),
+    }))
 }
 
 main :: proc()
 {
-    state := gui.State {}
+    layer := pax.GUI_Layer {}
 
-    gui.init(&state)
-
-    list(&state)
-
-    elem := gui.find(&state, 3)
-
-    gui.update_layout(&state, {1280, 720})
+    pax.gui_init(&layer)
 
     rl.SetTraceLogLevel(.NONE)
     rl.SetWindowState({.WINDOW_RESIZABLE})
     rl.InitWindow(1280, 720, "GUI")
 
-    camera := rl.Camera2D { zoom = 1 }
+    rl.SetExitKey(nil)
+
+    list(&layer)
 
     for rl.WindowShouldClose() == false {
-        if rl.IsWindowResized() {
-            size := [2]f32 {
-                f32(rl.GetScreenWidth()),
-                f32(rl.GetScreenHeight()),
-            }
-
-            gui.update_layout(&state, size)
+        size := [2]f32 {
+            f32(rl.GetScreenWidth()),
+            f32(rl.GetScreenHeight()),
         }
 
-        gui.update_hover(&state, rl.GetMousePosition())
+        point := rl.GetMousePosition()
+        step  := [3]bool {
+            rl.IsKeyReleased(.RIGHT),
+            rl.IsKeyReleased(.LEFT),
+            rl.IsKeyReleased(.ESCAPE),
+        }
 
-        gui.update_focus(&state, {
-            rl.IsKeyReleased(.RIGHT) || rl.IsKeyReleased(.D),
-            rl.IsKeyReleased(.LEFT)  || rl.IsMouseButtonReleased(.RIGHT),
-        })
+        pax.gui_update(&layer, size, point, step)
 
         rl.ClearBackground(rl.Color {})
-
         rl.BeginDrawing()
-        rl.BeginMode2D(camera)
 
-        for &elem, index in state.elems {
-            fill := rl.Color {
-                elem.color.fill.r,
-                elem.color.fill.g,
-                elem.color.fill.b,
-                elem.color.fill.a,
+        for &input, index in layer.inputs {
+            Type :: proc(^pax.GUI_Layer, int, rawptr)
+
+            if input.call_proc != nil {
+                Type(input.call_proc)(&layer, index + 1, input.instance)
             }
+        }
 
-            border := rl.Color {
-                elem.color.border.r,
-                elem.color.border.g,
-                elem.color.border.b,
-                elem.color.border.a,
+        for &shape, index in layer.shapes {
+            fill := rl.Color {
+                shape.color.r,
+                shape.color.g,
+                shape.color.b,
+                shape.color.a,
             }
 
             rect := rl.Rectangle {
-                elem.shape.absolute.x,
-                elem.shape.absolute.y,
-                elem.shape.absolute.z,
-                elem.shape.absolute.w,
+                shape.absolute.x,
+                shape.absolute.y,
+                shape.absolute.z,
+                shape.absolute.w,
             }
 
             rl.DrawRectangleRec(rect, fill)
 
-            if index + 1 == state.focus {
-                rl.DrawRectangleLinesEx(rect, 2, border)
+            if index + 1 == layer.hover {
+                rl.DrawRectangleRec(rect, {255, 255, 255, 64})
             }
 
-            if index + 1 == state.hover {
-                rl.DrawRectangleLinesEx(rect, 2, border)
+            if index + 1 == layer.focus {
+                rl.DrawRectangleLinesEx(rect, 2, {255, 255, 255, 255})
             }
         }
 
-        rl.EndMode2D()
         rl.EndDrawing()
     }
 

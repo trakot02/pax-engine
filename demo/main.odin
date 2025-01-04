@@ -11,9 +11,11 @@ main :: proc()
     app := pax.App {}
 
     game := Game_Stage {}
+    menu := Menu_Scene {}
     main := Main_Scene {}
 
     pax.app_init(&app)
+    pax.app_insert(&app, menu_scene(&menu))
     pax.app_insert(&app, main_scene(&main))
 
     succ := pax.app_loop(&app, game_stage(&game), {

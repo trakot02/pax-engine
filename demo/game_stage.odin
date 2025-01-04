@@ -13,6 +13,9 @@ Game_Stage :: struct {}
 game_stage_start :: proc(self: ^Game_Stage) -> bool
 {
     rl.InitWindow(320, 180, "Prova")
+    rl.SetWindowState({.WINDOW_RESIZABLE})
+
+    rl.SetExitKey(nil)
 
     return true
 }
