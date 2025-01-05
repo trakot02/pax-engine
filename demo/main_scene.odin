@@ -16,6 +16,7 @@ Main_Scene :: struct
 
     sprites:  pax.Sprite_Registry,
     textures: pax.Texture_Registry,
+    fonts:    pax.Font_Registry,
     grids:    pax.Grid_Registry,
 
     actors:  pax.Resource,
@@ -113,6 +114,7 @@ main_scene_start :: proc(self: ^Main_Scene, stage: ^Game_Stage) -> bool
 
     pax.sprite_registry_init(&self.sprites)
     pax.texture_registry_init(&self.textures)
+    pax.font_registry_init(&self.fonts)
     pax.grid_registry_init(&self.grids)
 
     pax.resource_init(&self.actors)
@@ -120,6 +122,7 @@ main_scene_start :: proc(self: ^Main_Scene, stage: ^Game_Stage) -> bool
 
     self.render.camera   = &self.camera
     self.render.textures = &self.textures
+    self.render.fonts    = &self.fonts
     self.render.sprites  = &self.sprites
 
     self.player  = pax.resource_create(&self.actors) or_return
@@ -211,19 +214,6 @@ main_scene_load :: proc(self: ^Main_Scene) -> bool
     }
 
     rl.SetWindowSize(i32(size.x), i32(size.y))
-
-    screen := [2]f32 {
-        f32(rl.GetMonitorWidth(0)),
-        f32(rl.GetMonitorHeight(0)),
-    }
-
-    size   /= 2.0
-    screen /= 2.0
-
-    rl.SetWindowPosition(
-        i32(screen.x - size.x),
-        i32(screen.y - size.y),
-    )
 
     return true
 }
@@ -400,7 +390,7 @@ main_scene_draw_player_layer :: proc(self: ^Main_Scene, layer: int, cell: [2]int
 
 main_scene_draw :: proc(self: ^Main_Scene)
 {
-    pax.render_clear(&self.render, {50, 50, 50, 255})
+    pax.render_clear(&self.render, {0, 0, 0, 255})
 
     player, _ := pax.registry_find(&self.players, self.player)
 

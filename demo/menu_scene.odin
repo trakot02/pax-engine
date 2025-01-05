@@ -10,6 +10,10 @@ Menu_Scene :: struct
 {
     gui: pax.GUI_Layer,
 
+    render: pax.Render_Context,
+
+    fonts: pax.Font_Registry,
+
     state: int,
 }
 
@@ -51,6 +55,12 @@ menu_scene_gui :: proc(self: ^Menu_Scene)
 
             if released == true { scene.state = 2 }
         }),
+        // content = pax.Text {
+        //     content = "Play",
+        //     font    = 1,
+        //     size    = 32,
+        //     color   = {255, 255, 255, 255},
+        // }
     })
 
     pax.gui_append_child(&self.gui, 2, {
@@ -89,12 +99,42 @@ menu_scene_start :: proc(self: ^Menu_Scene, stage: ^Game_Stage) -> bool
 {
     pax.gui_init(&self.gui)
 
+    pax.font_registry_init(&self.fonts)
+
+    self.render.fonts = &self.fonts
+
+    if menu_scene_load(self) == false {
+        log.errorf("Menu_Scene: Unable to load")
+
+        return false
+    }
+
     return true
 }
 
 menu_scene_stop :: proc(self: ^Menu_Scene)
 {
+    menu_scene_unload(self)
+
     pax.gui_destroy(&self.gui)
+}
+
+menu_scene_load :: proc(self: ^Menu_Scene) -> bool
+{
+    fonts := [?]string {
+        "data/arial.ttf",
+    }
+
+    for name in fonts {
+        pax.font_registry_read(&self.fonts, name) or_return
+    }
+
+    return true
+}
+
+menu_scene_unload :: proc(self: ^Menu_Scene)
+{
+    // empty.
 }
 
 menu_scene_enter :: proc(self: ^Menu_Scene)
@@ -152,39 +192,49 @@ menu_scene_step :: proc(self: ^Menu_Scene, delta: f32)
     // empty.
 }
 
+import "core:fmt"
+
 menu_scene_draw :: proc(self: ^Menu_Scene)
 {
-    rl.ClearBackground({})
+    pax.render_clear(&self.render, {0, 0, 0, 255})
 
-    for &shape, index in self.gui.shapes {
+    for _, index in self.gui.nodes {
+        handle := pax.gui_find(&self.gui, index + 1)
+
+        fmt.printf("%v\n", handle.shape.absolute)
+
         rect := rl.Rectangle {
-            shape.absolute.x,
-            shape.absolute.y,
-            shape.absolute.z,
-            shape.absolute.w,
+            handle.shape.absolute.x,
+            handle.shape.absolute.y,
+            handle.shape.absolute.w,
+            handle.shape.absolute.z,
         }
 
         fill := rl.Color {
-            shape.color.r,
-            shape.color.g,
-            shape.color.b,
-            shape.color.a,
+            handle.shape.color.r,
+            handle.shape.color.g,
+            handle.shape.color.b,
+            handle.shape.color.a,
         }
 
         rl.DrawRectangleRec(rect, fill)
 
-        if index + 1 == self.gui.hover {
-            rl.DrawRectangleRec(rect, {
-                255, 255, 255, 24,
-            })
+        // #partial switch type in handle.content {
+        //     case pax.Text: pax.render_draw_text(&self.render, type, {
+        //         point = handle.shape.absolute.xy
+        //     })
+        // }
+
+        if handle.number == self.gui.hover {
+            rl.DrawRectangleRec(rect, {55, 255, 255, 24})
         }
 
-        if index + 1 == self.gui.focus {
-            rl.DrawRectangleLinesEx(rect, 2, {
-                255, 255, 255, 255,
-            })
+        if handle.number == self.gui.focus {
+            rl.DrawRectangleLinesEx(rect, 2, {255, 255, 255, 255})
         }
     }
+
+    fmt.printf("\n")
 }
 
 menu_scene :: proc(self: ^Menu_Scene) -> pax.Scene

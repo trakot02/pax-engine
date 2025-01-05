@@ -153,3 +153,15 @@ texture_registry_read :: proc(self: ^Texture_Registry, name: string) -> bool
 
     return state
 }
+
+texture_size :: proc(self: ^Texture_Registry, sprite: Sprite) -> [2]f32
+{
+    texture, _ := texture_registry_find(self, sprite.texture)
+
+    if texture == nil { return {} }
+
+    return [2]f32 {
+        f32(texture.width),
+        f32(texture.height),
+    }
+}

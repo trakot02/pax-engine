@@ -1,6 +1,8 @@
 package pax
 
 import "core:log"
+import "core:mem"
+import "core:strings"
 
 import rl "vendor:raylib"
 
@@ -20,6 +22,11 @@ Render_Context :: struct
     //
     //
     sprites: ^Sprite_Registry,
+
+    //
+    //
+    //
+    fonts: ^Font_Registry,
 }
 
 //
@@ -37,8 +44,6 @@ render_clear :: proc(self: ^Render_Context, color: [4]u8 = {})
 //
 render_draw_sprite :: proc(self: ^Render_Context, visual: Visual, transform: Transform) -> bool
 {
-    value := visual.frame
-
     sprite  := sprite_registry_find(self.sprites, visual.sprite)     or_return
     texture := texture_registry_find(self.textures, sprite.texture)  or_return
     frame   := sprite_find_frame(sprite, visual.frame, visual.chain) or_return
@@ -65,6 +70,33 @@ render_draw_sprite :: proc(self: ^Render_Context, visual: Visual, transform: Tra
 
     rl.DrawTexturePro(texture^, part, rect, {0, 0}, 0,
         {255, 255, 255, 255})
+
+    return true
+}
+
+//
+//
+//
+render_draw_text :: proc(self: ^Render_Context, text: Text, transform: Transform) -> bool
+{
+    alloc := context.allocator
+
+    font := font_registry_find(self.fonts, text.font) or_return
+
+    clone, error := strings.clone_to_cstring(text.content, alloc)
+
+    if error != nil {
+        log.errorf("Render: Unable to clone %q to c-string",
+            text.content)
+
+        return false
+    }
+
+    rl.DrawTextEx(font^, clone, transform.point, text.size, text.spacing, rl.Color {
+        text.color.r, text.color.g, text.color.b, text.color.a,
+    })
+
+    mem.free_all(alloc)
 
     return true
 }

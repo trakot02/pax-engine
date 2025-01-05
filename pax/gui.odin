@@ -189,6 +189,11 @@ GUI_Input :: struct
     call_proc: rawptr,
 }
 
+GUI_Content :: union
+{
+    Text, Sprite,
+}
+
 GUI_Handle :: struct
 {
     //
@@ -215,9 +220,14 @@ GUI_Handle :: struct
     //
     //
     input: ^GUI_Input,
+
+    //
+    //
+    //
+    content: ^GUI_Content,
 }
 
-Recipe :: struct
+GUI_Element :: struct
 {
     //
     //
@@ -233,6 +243,11 @@ Recipe :: struct
     //
     //
     input: GUI_Input,
+
+    //
+    //
+    //
+    content: GUI_Content,
 }
 
 GUI_Layer :: struct
@@ -281,8 +296,26 @@ GUI_Layer :: struct
     // Contains all the inputs.
     //
     inputs: [dynamic]GUI_Input,
+
+    //
+    // Contains all the contents.
+    //
+    contents: [dynamic]GUI_Content,
+
+    //
+    //
+    //
+    fonts: ^Font_Registry,
+
+    //
+    //
+    //
+    textures: ^Texture_Registry,
 }
 
+//
+//
+//
 gui_input_from_proc :: proc(call: proc(^GUI_Layer, int)) -> GUI_Input
 {
     return {
@@ -290,6 +323,9 @@ gui_input_from_proc :: proc(call: proc(^GUI_Layer, int)) -> GUI_Input
     }
 }
 
+//
+//
+//
 gui_input_from_pair :: proc(instance: ^$T, call: proc(^GUI_Layer, int, ^T)) -> GUI_Input
 {
     return {
@@ -308,10 +344,11 @@ gui_input_from :: proc {
 //
 gui_init :: proc(layer: ^GUI_Layer, allocator := context.allocator)
 {
-    layer.nodes  = make([dynamic]GUI_Node,  allocator)
-    layer.shapes = make([dynamic]GUI_Shape, allocator)
-    layer.groups = make([dynamic]GUI_Group, allocator)
-    layer.inputs = make([dynamic]GUI_Input, allocator)
+    layer.nodes    = make([dynamic]GUI_Node,    allocator)
+    layer.shapes   = make([dynamic]GUI_Shape,   allocator)
+    layer.groups   = make([dynamic]GUI_Group,   allocator)
+    layer.inputs   = make([dynamic]GUI_Input,   allocator)
+    layer.contents = make([dynamic]GUI_Content, allocator)
 }
 
 //
@@ -319,19 +356,21 @@ gui_init :: proc(layer: ^GUI_Layer, allocator := context.allocator)
 //
 gui_destroy :: proc(layer: ^GUI_Layer)
 {
+    delete(layer.contents)
     delete(layer.inputs)
     delete(layer.groups)
     delete(layer.shapes)
     delete(layer.nodes)
 
-    layer.root    = 0
-    layer.active  = 0
-    layer.focus   = 0
-    layer.hover   = 0
-    layer.nodes   = {}
-    layer.shapes  = {}
-    layer.groups  = {}
-    layer.inputs  = {}
+    layer.root     = 0
+    layer.active   = 0
+    layer.focus    = 0
+    layer.hover    = 0
+    layer.nodes    = {}
+    layer.shapes   = {}
+    layer.groups   = {}
+    layer.inputs   = {}
+    layer.contents = {}
 }
 
 //
@@ -339,6 +378,7 @@ gui_destroy :: proc(layer: ^GUI_Layer)
 //
 gui_clear :: proc(layer: ^GUI_Layer)
 {
+    clear(&layer.contents)
     clear(&layer.inputs)
     clear(&layer.groups)
     clear(&layer.shapes)
@@ -359,11 +399,12 @@ gui_find :: proc(layer: ^GUI_Layer, number: int) -> GUI_Handle
     index  := number - 1
 
     if 0 <= index && index < len(layer.nodes) {
-        result.number = number
-        result.node   = &layer.nodes[index]
-        result.shape  = &layer.shapes[index]
-        result.group  = &layer.groups[index]
-        result.input  = &layer.inputs[index]
+        result.number  = number
+        result.node    = &layer.nodes[index]
+        result.shape   = &layer.shapes[index]
+        result.group   = &layer.groups[index]
+        result.input   = &layer.inputs[index]
+        result.content = &layer.contents[index]
     }
 
     return result
@@ -446,7 +487,10 @@ gui_children :: proc(layer: ^GUI_Layer, node: ^GUI_Node) -> int
     return count
 }
 
-gui_append_root :: proc(layer: ^GUI_Layer, recipe: Recipe) -> int
+//
+//
+//
+gui_append_root :: proc(layer: ^GUI_Layer, element: GUI_Element) -> int
 {
     count := len(layer.nodes)
 
@@ -454,18 +498,20 @@ gui_append_root :: proc(layer: ^GUI_Layer, recipe: Recipe) -> int
 
     _, error := append(&layer.nodes, GUI_Node {})
 
-    if error == nil { _, error = append(&layer.shapes, recipe.shape) }
-    if error == nil { _, error = append(&layer.groups, recipe.group) }
-    if error == nil { _, error = append(&layer.inputs, recipe.input) }
+    if error == nil { _, error = append(&layer.shapes,   element.shape)   }
+    if error == nil { _, error = append(&layer.groups,   element.group)   }
+    if error == nil { _, error = append(&layer.inputs,   element.input)   }
+    if error == nil { _, error = append(&layer.contents, element.content) }
 
     if error != nil {
-        resize(&layer.nodes,  count)
-        resize(&layer.shapes, count)
-        resize(&layer.groups, count)
-        resize(&layer.inputs, count)
+        resize(&layer.nodes,    count)
+        resize(&layer.shapes,   count)
+        resize(&layer.groups,   count)
+        resize(&layer.inputs,   count)
+        resize(&layer.contents, count)
 
-        log.errorf("GUI: Unable to insert root element = %v, %v, %v",
-            recipe.shape, recipe.group, recipe.input)
+        log.errorf("GUI: Unable to insert root element = %v, %v, %v %v",
+            element.shape, element.group, element.input, element.content)
 
         return 0
     }
@@ -479,7 +525,7 @@ gui_append_root :: proc(layer: ^GUI_Layer, recipe: Recipe) -> int
 //
 //
 //
-gui_append_child :: proc(layer: ^GUI_Layer, parent: int, recipe: Recipe) -> int
+gui_append_child :: proc(layer: ^GUI_Layer, parent: int, element: GUI_Element) -> int
 {
     count := len(layer.nodes)
 
@@ -487,18 +533,20 @@ gui_append_child :: proc(layer: ^GUI_Layer, parent: int, recipe: Recipe) -> int
 
     _, error := append(&layer.nodes, GUI_Node { parent = parent })
 
-    if error == nil { _, error = append(&layer.shapes, recipe.shape) }
-    if error == nil { _, error = append(&layer.groups, recipe.group) }
-    if error == nil { _, error = append(&layer.inputs, recipe.input) }
+    if error == nil { _, error = append(&layer.shapes,   element.shape)   }
+    if error == nil { _, error = append(&layer.groups,   element.group)   }
+    if error == nil { _, error = append(&layer.inputs,   element.input)   }
+    if error == nil { _, error = append(&layer.contents, element.content) }
 
     if error != nil {
-        resize(&layer.nodes,  count)
-        resize(&layer.shapes, count)
-        resize(&layer.groups, count)
-        resize(&layer.inputs, count)
+        resize(&layer.nodes,    count)
+        resize(&layer.shapes,   count)
+        resize(&layer.groups,   count)
+        resize(&layer.inputs,   count)
+        resize(&layer.contents, count)
 
-        log.errorf("GUI: Unable to insert element = %v, %v, %v",
-            recipe.shape, recipe.group, recipe.input)
+        log.errorf("GUI: Unable to insert element = %v, %v, %v, %v",
+            element.shape, element.group, element.input, element.content)
 
         return 0
     }
@@ -523,16 +571,16 @@ gui_append_child :: proc(layer: ^GUI_Layer, parent: int, recipe: Recipe) -> int
 //
 //
 //
-gui_calc_size :: proc(layer: ^GUI_Layer, node: ^GUI_Node, shape: ^GUI_Shape, group: ^GUI_Group)
+gui_calc_size :: proc(layer: ^GUI_Layer, node: ^GUI_Node, shape: ^GUI_Shape, group: ^GUI_Group, content: ^GUI_Content)
 {
     if node == nil || shape == nil { return }
 
     switch &type in group {
         case GUI_List_Group: gui_calc_list_size(layer, node, shape, type)
-        case GUI_Flex_Group: gui_calc_flex_size(layer, node, shape, type)
+        case GUI_Flex_Group: gui_calc_flex_size(layer, node, shape, type, content)
 
         case nil: {
-            gui_calc_own_size(layer, node, shape)
+            gui_calc_own_size(layer, node, shape, content)
             gui_calc_rec_size(layer, node)
         }
     }
@@ -559,7 +607,7 @@ gui_calc_pos :: proc(layer: ^GUI_Layer, node: ^GUI_Node, shape: ^GUI_Shape, grou
 //
 //
 //
-gui_calc_own_size :: proc(layer: ^GUI_Layer, node: ^GUI_Node, shape: ^GUI_Shape)
+gui_calc_own_size :: proc(layer: ^GUI_Layer, node: ^GUI_Node, shape: ^GUI_Shape, content: ^GUI_Content)
 {
     if node == nil || shape == nil { return }
 
@@ -571,6 +619,16 @@ gui_calc_own_size :: proc(layer: ^GUI_Layer, node: ^GUI_Node, shape: ^GUI_Shape)
         shape.absolute.zw += parent.shape.absolute.zw *
             shape.relative.zw
     }
+
+    // rect := shape.absolute
+
+    // #partial switch type in content {
+    //     case Text:   rect.zw = font_measure(layer.fonts,    type)
+    //     case Sprite: rect.zw = texture_size(layer.textures, type)
+    // }
+
+    // shape.absolute.z = max(rect.z, shape.absolute.z)
+    // shape.absolute.w = max(rect.w, shape.absolute.w)
 }
 
 //
@@ -583,7 +641,7 @@ gui_calc_rec_size :: proc(layer: ^GUI_Layer, node: ^GUI_Node)
     child := gui_first(layer, node)
 
     for ; child.number != 0; child = gui_next(layer, child.node) {
-        gui_calc_size(layer, child.node, child.shape, child.group)
+        gui_calc_size(layer, child.node, child.shape, child.group, child.content)
     }
 }
 
@@ -636,7 +694,7 @@ gui_calc_list_size :: proc(layer: ^GUI_Layer, node: ^GUI_Node, shape: ^GUI_Shape
     }
 
     for ; child.number != 0; child = gui_next(layer, child.node) {
-        gui_calc_size(layer, child.node, child.shape, child.group)
+        gui_calc_size(layer, child.node, child.shape, child.group, child.content)
 
         switch group.direction {
             case .COL: {
@@ -714,11 +772,11 @@ gui_calc_list_pos :: proc(layer: ^GUI_Layer, node: ^GUI_Node, shape: ^GUI_Shape,
 //
 //
 //
-gui_calc_flex_size :: proc(layer: ^GUI_Layer, node: ^GUI_Node, shape: ^GUI_Shape, group: GUI_Flex_Group)
+gui_calc_flex_size :: proc(layer: ^GUI_Layer, node: ^GUI_Node, shape: ^GUI_Shape, group: GUI_Flex_Group, content: ^GUI_Content)
 {
     if node == nil || shape == nil { return }
 
-    gui_calc_own_size(layer, node, shape)
+    gui_calc_own_size(layer, node, shape, content)
 
     part  := shape.absolute
     count := gui_children(layer, node)
@@ -934,7 +992,7 @@ gui_update :: proc(layer: ^GUI_Layer, area: [2]f32, point: [2]f32 = {}, step: [3
     if self.number != 0 {
         self.shape.offset.zw = area
 
-        gui_calc_size(layer, self.node, self.shape, self.group)
+        gui_calc_size(layer, self.node, self.shape, self.group, self.content)
         gui_calc_pos(layer, self.node, self.shape, self.group)
 
         gui_calc_hover(layer, self, point)
