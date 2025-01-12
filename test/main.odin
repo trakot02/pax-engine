@@ -1,272 +1,165 @@
 package test
 
+import "core:log"
 import "core:fmt"
 
 import rl  "vendor:raylib"
 import pax "../pax"
+import gui "../pax/gui"
+import res "../pax/res"
 
-input_move :: proc(layer: ^pax.GUI_Layer, number: int)
+App_State :: struct
 {
-    handle := pax.gui_find(layer, number)
+    gui:      gui.State,
+    textures: res.Holder(res.Texture),
 
-    pax.gui_focused(layer, number, rl.IsMouseButtonPressed(.LEFT))
-
-    pax.gui_pressed(layer, number, rl.IsMouseButtonPressed(.LEFT) ||
-        rl.IsKeyPressed(.LEFT_CONTROL) || rl.IsKeyPressed(.RIGHT_CONTROL))
-
-    pax.gui_released(layer, number, rl.IsMouseButtonReleased(.LEFT) ||
-        rl.IsKeyReleased(.LEFT_CONTROL) || rl.IsKeyReleased(.RIGHT_CONTROL))
-
-    dragged := rl.GetMouseDelta()
-
-    if pax.gui_dragged(layer, number, dragged != {}) {
-        handle.shape.offset.xy += dragged
-    }
-}
-
-input_grow :: proc(layer: ^pax.GUI_Layer, number: int)
-{
-    handle := pax.gui_find(layer, number)
-
-    pax.gui_focused(layer, number, rl.IsMouseButtonPressed(.LEFT))
-
-    pax.gui_pressed(layer, number, rl.IsMouseButtonPressed(.LEFT) ||
-        rl.IsKeyPressed(.LEFT_CONTROL) || rl.IsKeyPressed(.RIGHT_CONTROL))
-
-    pax.gui_released(layer, number, rl.IsMouseButtonReleased(.LEFT) ||
-        rl.IsKeyReleased(.LEFT_CONTROL) || rl.IsKeyReleased(.RIGHT_CONTROL))
-
-    dragged := rl.GetMouseDelta()
-
-    if pax.gui_dragged(layer, number, dragged != {}) {
-        handle.shape.offset.zw += dragged
-
-        handle.shape.offset.z = max(handle.shape.offset.z, 0)
-        handle.shape.offset.w = max(handle.shape.offset.w, 0)
-    }
-}
-
-list :: proc(layer: ^pax.GUI_Layer)
-{
-    assert(1 == pax.gui_append_root(layer, {
-        shape = {
-            color = {32, 32, 32, 255},
-        },
-    }))
-
-    assert(2 == pax.gui_append_child(layer, 1, {
-        shape = {
-            origin   = {0.5, 0.5},
-            relative = {0.5, 0.5, 0, 0},
-        },
-        group = pax.GUI_List_Group {
-            direction = .COL,
-            between   = 8,
-            // stretch   = true,
-        },
-        input = pax.gui_input_from(input_move),
-    }))
-
-    assert(3 == pax.gui_append_child(layer, 2, {
-        shape = {
-            offset = {  0,   0, 100,  50},
-            color  = {192,  64,  64, 255},
-        },
-        input = pax.gui_input_from(input_grow),
-    }))
-
-    assert(4 == pax.gui_append_child(layer, 2, {
-        shape = {
-            offset = {  0,   0, 100,  50},
-            color  = {192, 192,  64, 255},
-        },
-        input = pax.gui_input_from(input_grow),
-    }))
-
-    assert(5 == pax.gui_append_child(layer, 2, {
-        shape = {
-            offset = {  0,   0, 100,  50},
-            color  = { 64, 192,  64, 255},
-        },
-        input = pax.gui_input_from(input_grow),
-    }))
-
-    assert(6 == pax.gui_append_child(layer, 2, {
-        shape = {
-            offset = {  0,   0, 100,  50},
-            color  = { 64, 192, 192, 255},
-        },
-        input = pax.gui_input_from(input_grow),
-    }))
-
-    assert(7 == pax.gui_append_child(layer, 2, {
-        shape = {
-            offset = {  0,   0, 100,  50},
-            color  = { 64,  64, 192, 255},
-        },
-        input = pax.gui_input_from(input_grow),
-    }))
-
-    assert(8 == pax.gui_append_child(layer, 2, {
-        shape = {
-            offset = {  0,   0, 100,  60},
-            color  = {192,  64, 192, 255},
-        },
-        input = pax.gui_input_from(input_grow),
-    }))
-}
-
-flex :: proc(layer: ^pax.GUI_Layer)
-{
-    assert(1 == pax.gui_append_root(layer, {
-        shape = {
-            color = {32, 32, 32, 255},
-        },
-    }))
-
-    assert(2 == pax.gui_append_child(layer, 1, {
-        shape = {
-            origin   = {0.5, 0.5},
-            relative = {0.5, 0.5, 0.75, 0.5},
-        },
-        group = pax.GUI_Flex_Group {
-            direction = .COL,
-            placement = .ALIGN_CENTER,
-            between   = 8,
-            // stretch   = true,
-        },
-        input = pax.gui_input_from(input_move),
-    }))
-
-    assert(3 == pax.gui_append_child(layer, 2, {
-        shape = {
-            offset   = {0, 0, 100, 60},
-            origin   = {0.5, 0.5},
-            relative = {0.5, 0.5, 0, 0},
-            color    = {192, 64, 64, 255},
-        },
-        input = pax.gui_input_from(input_grow),
-    }))
-
-    assert(4 == pax.gui_append_child(layer, 2, {
-        shape = {
-            offset   = {0, 0, 100, 50},
-            origin   = {0.5, 0.5},
-            relative = {0.5, 0.5, 0, 0},
-            color    = {192, 192, 64, 255},
-        },
-        input = pax.gui_input_from(input_grow),
-    }))
-
-    assert(5 == pax.gui_append_child(layer, 2, {
-        shape = {
-            offset   = {0, 0, 100, 50},
-            origin   = {0.5, 0.5},
-            relative = {0.5, 0.5, 0, 0},
-            color    = {64, 192, 64, 255},
-        },
-        input = pax.gui_input_from(input_grow),
-    }))
-
-    assert(6 == pax.gui_append_child(layer, 2, {
-        shape = {
-            offset   = {0, 0, 100, 50},
-            origin   = {0.5, 0.5},
-            relative = {0.5, 0.5, 0, 0},
-            color    = {64, 192, 192, 255},
-        },
-        input = pax.gui_input_from(input_grow),
-    }))
-
-    assert(7 == pax.gui_append_child(layer, 2, {
-        shape = {
-            offset   = {0, 0, 100, 50},
-            origin   = {0.5, 0.5},
-            relative = {0.5, 0.5, 0, 0},
-            color    = {64, 64, 192, 255},
-        },
-        input = pax.gui_input_from(input_grow),
-    }))
-
-    assert(8 == pax.gui_append_child(layer, 2, {
-        shape = {
-            offset   = {0, 0, 100, 60},
-            origin   = {0.5, 0.5},
-            relative = {0.5, 0.5, 0, 0},
-            color    = {192, 64, 192, 255},
-        },
-        input = pax.gui_input_from(input_grow),
-    }))
+    atlas: int,
 }
 
 main :: proc()
 {
-    layer := pax.GUI_Layer {}
+    context.logger = log.create_console_logger(lowest = .Debug)
 
-    pax.gui_init(&layer)
+    app := App_State {}
 
-    rl.SetTraceLogLevel(.NONE)
-    rl.SetWindowState({.WINDOW_RESIZABLE})
+    value   := f32(0)
+    color_1 := [4]u8 {224, 96, 96, 255}
+    color_2 := [4]u8 {96, 224, 96, 255}
+
+    rl.SetWindowState({.WINDOW_RESIZABLE, .WINDOW_HIDDEN})
     rl.InitWindow(1280, 720, "GUI")
 
-    rl.SetExitKey(nil)
+    res.holder_init(&app.textures)
+    gui.init(&app.gui, &app.textures)
 
-    list(&layer)
+    app.atlas, _ = res.holder_insert(&app.textures,
+        res.texture_read("data/atlas.png"))
+
+    rl.ClearWindowState({.WINDOW_HIDDEN})
 
     for rl.WindowShouldClose() == false {
-        size := [2]f32 {
-            f32(rl.GetScreenWidth()),
-            f32(rl.GetScreenHeight()),
+        gui.update(&app.gui, rl.GetMouseDelta())
+
+        root, _ := gui.insert_root(&app.gui, {
+            offset = {0, 0,
+                f32(rl.GetScreenWidth()),
+                f32(rl.GetScreenHeight()),
+            },
+            fill = {32, 32, 32, 255},
+        })
+
+        list, _ := gui.insert_child(&app.gui, root, gui.Element {
+            // offset = {0, 0, 256, 0},
+            origin = {0.5, 0.5},
+            factor = {0.5, 0.5, 0.25, 0.5},
+            fill   = {255, 255, 255, 32},
+            group  = gui.List_Group {
+                direction = .COL,
+                between   = 8,
+            }
+        })
+
+        button_1, _ := gui.insert_child(&app.gui, list, gui.Element {
+            offset = {0, 0, 256, 48},
+            origin = {0.5, 0.5},
+            factor = {0.5, 0.5, 0, 0},
+            fill   = color_1,
+        })
+
+        button_2, _ := gui.insert_child(&app.gui, list, gui.Element {
+            offset = {0, 0, 64, 48},
+            origin = {0.5, 0.5},
+            factor = {0.5, 0.5, 0, 0},
+            fill   = color_2,
+        })
+
+        slider_1, _ := gui.insert_child(&app.gui, list, gui.Element {
+            origin = {0.5, 0.5},
+            factor = {0.5, 0.5, 4, 4},
+            group  = gui.Image_Group {
+                slot = app.atlas,
+            }
+        })
+
+        gui.layout(&app.gui)
+
+        button_info := gui.Button_Info {
+            pressed  = b8(rl.IsMouseButtonPressed(.LEFT)),
+            released = b8(rl.IsMouseButtonReleased(.LEFT)),
         }
 
-        point := rl.GetMousePosition()
-        step  := [3]bool {
-            rl.IsKeyReleased(.RIGHT),
-            rl.IsKeyReleased(.LEFT),
-            rl.IsKeyReleased(.ESCAPE),
+        slider_info := gui.Slider_Info {
+            pressed  = b8(rl.IsMouseButtonPressed(.LEFT)),
+            released = b8(rl.IsMouseButtonReleased(.LEFT)),
+            movement = app.gui.delta.x,
+            range    = {0, 255},
+            step     = 1,
         }
 
-        pax.gui_update(&layer, size, point, step)
+        if gui.button(&app.gui, button_1, button_info) {
+            temp := color_1
 
-        rl.ClearBackground(rl.Color {})
+            color_1 = color_2
+            color_2 = temp
+        }
+
+        if gui.button(&app.gui, button_2, button_info) {
+            temp := color_1
+
+            color_1 = color_2
+            color_2 = temp
+        }
+
+        gui.slider(&app.gui, slider_1, slider_info, &value)
+
+        rl.ClearBackground({255, 255, 255, 255})
         rl.BeginDrawing()
 
-        for &input, index in layer.inputs {
-            Type :: proc(^pax.GUI_Layer, int, rawptr)
+        for slot in 1 ..= len(app.gui.nodes) {
+            handle := gui.find(&app.gui, slot)
 
-            if input.call_proc != nil {
-                Type(input.call_proc)(&layer, index + 1, input.instance)
-            }
-        }
+            rl.DrawRectangleRec({
+                handle.bounds.x, handle.bounds.y,
+                handle.bounds.z, handle.bounds.w,
+            }, {
+                handle.fill.r, handle.fill.g,
+                handle.fill.b, handle.fill.a,
+            })
 
-        for &shape, index in layer.shapes {
-            fill := rl.Color {
-                shape.color.r,
-                shape.color.g,
-                shape.color.b,
-                shape.color.a,
-            }
-
-            rect := rl.Rectangle {
-                shape.absolute.x,
-                shape.absolute.y,
-                shape.absolute.z,
-                shape.absolute.w,
+            if gui.is_active(&app.gui, handle) {
+                rl.DrawRectangleLinesEx({
+                    handle.bounds.x, handle.bounds.y,
+                    handle.bounds.z, handle.bounds.w,
+                }, 2, {255, 255, 255, 255})
             }
 
-            rl.DrawRectangleRec(rect, fill)
-
-            if index + 1 == layer.hover {
-                rl.DrawRectangleRec(rect, {255, 255, 255, 64})
+            if gui.is_target(&app.gui, handle) {
+                rl.DrawRectangleRec({
+                    handle.bounds.x, handle.bounds.y,
+                    handle.bounds.z, handle.bounds.w,
+                }, {255, 255, 255, 32})
             }
 
-            if index + 1 == layer.focus {
-                rl.DrawRectangleLinesEx(rect, 2, {255, 255, 255, 255})
+            #partial switch &group in handle.group {
+                case gui.Image_Group: {
+                    texture := res.holder_find(app.gui.textures, group.slot)
+
+                    if texture.slot != 0 {
+                        rl.DrawTexturePro(texture.value^, {
+                            0, 0, f32(texture.value.width), f32(texture.value.height)
+                        }, {
+                            handle.bounds.x, handle.bounds.y,
+                            handle.bounds.z, handle.bounds.w,
+                        }, {}, 0, {255, 255, u8(value), 255})
+                    }
+                }
             }
         }
 
         rl.EndDrawing()
     }
+
+    gui.destroy(&app.gui)
 
     rl.CloseWindow()
 }
