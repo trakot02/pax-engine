@@ -11,6 +11,14 @@ Font :: rl.Font
 //
 //
 //
+font_default :: proc() -> Font
+{
+    return rl.GetFontDefault()
+}
+
+//
+//
+//
 font_read :: proc(name: string, size: int) -> Font
 {
     clone, error := strings.clone_to_cstring(name,

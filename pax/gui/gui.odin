@@ -178,6 +178,11 @@ State :: struct
     textures: ^res.Holder(res.Texture),
 
     //
+    //
+    //
+    fonts: ^res.Holder(res.Font),
+
+    //
     // Contains all the nodes.
     //
     nodes: [dynamic]Node,
@@ -201,7 +206,7 @@ State :: struct
 //
 //
 //
-init :: proc(state: ^State, textures: ^res.Holder(res.Texture), allocator := context.allocator)
+init :: proc(state: ^State, textures: ^res.Holder(res.Texture), fonts: ^res.Holder(res.Font), allocator := context.allocator)
 {
     state.nodes  = make([dynamic]Node,  allocator)
     state.shapes = make([dynamic]Shape, allocator)
@@ -209,6 +214,7 @@ init :: proc(state: ^State, textures: ^res.Holder(res.Texture), allocator := con
     state.groups = make([dynamic]Group, allocator)
 
     state.textures = textures
+    state.fonts    = fonts
 }
 
 //
@@ -230,6 +236,7 @@ destroy :: proc(state: ^State)
     state.groups = {}
 
     state.textures = nil
+    state.fonts    = nil
 }
 
 //
@@ -245,7 +252,7 @@ find_texture :: proc(state: ^State, slot: int) -> res.Handle(res.Texture)
 //
 find_font :: proc(state: ^State, slot: int) -> res.Handle(res.Font)
 {
-    return {}
+    return res.holder_find(state.fonts, slot)
 }
 
 //

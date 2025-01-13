@@ -1,6 +1,8 @@
 package demo
 
 import "core:log"
+import "core:strings"
+import "core:mem"
 
 import rl  "vendor:raylib"
 import pax "../pax"
@@ -38,8 +40,11 @@ Demo_Scene :: struct
     gui: gui.State,
 
     textures: res.Holder(res.Texture),
+    fonts:    res.Holder(res.Font),
 
-    atlas: int,
+    atlas:   int,
+    default: int,
+
     state: int,
 
     value:  f32,
@@ -50,15 +55,17 @@ Demo_Scene :: struct
 demo_scene_start :: proc(self: ^Demo_Scene, stage: ^Game_Stage) -> bool
 {
     res.holder_init(&self.textures)
+    res.holder_init(&self.fonts)
 
-    gui.init(&self.gui, &self.textures)
+    gui.init(&self.gui, &self.textures, &self.fonts)
 
-    self.atlas, _ = res.texture_read_and_insert(&self.textures, "data/atlas.png")
+    self.atlas, _   = res.texture_read_and_insert(&self.textures, "data/atlas.png")
+    self.default, _ = res.holder_insert(&self.fonts, res.font_default())
 
     self.colors = {
-        {224,  96,  96, 255},
-        { 96, 224,  96, 255},
-        { 96,  96, 224, 255},
+        {192,  64,  64, 255},
+        { 64, 192,  64, 255},
+        { 64,  64, 192, 255},
     }
 
     rl.ClearWindowState({.WINDOW_HIDDEN})
@@ -97,16 +104,23 @@ demo_scene_frame :: proc(self: ^Demo_Scene)
     })
 
     button, _ := gui.insert_child(&self.gui, list, {
-        offset = {0, 0, 256, 48},
+        offset = {0, 0, 128, 32},
         origin = {0.5, 0.5},
         factor = {0.5, 0.5, 1, 0},
         fill   = self.colors[self.color],
+        group  = gui.Text_Group {
+            slot  = self.default,
+            size  = 60,
+            value = "Ginger Bill",
+            space = 5,
+        }
     })
 
     slider, _ := gui.insert_child(&self.gui, list, {
+        offset = {0, 0, 32, 32},
         origin = {0.5, 0.5},
         factor = {0.5, 0.5, 0, 0},
-        fill   = [4]u8 {255, 255, 255, 255 - u8(self.value)},
+        fill   = [4]u8 {255, 255, 255, u8(self.value)},
         group  = gui.Image_Group {
             slot  = self.atlas,
             scale = {3, 3},
@@ -168,18 +182,50 @@ demo_scene_draw  :: proc(self: ^Demo_Scene)
             handle.fill.b, handle.fill.a,
         }
 
-        #partial switch group in handle.group {
+        #partial switch &group in handle.group {
             case gui.Image_Group: {
                 texture := res.holder_find(&self.textures, group.slot)
 
                 if texture.slot == 0 { continue }
 
-                src := rl.Rectangle {0, 0,
-                    f32(texture.value.width),
-                    f32(texture.value.height),
+                src := rl.Rectangle {
+                    0, 0, group.rect.z, group.rect.w
                 }
 
-                rl.DrawTexturePro(texture.value^, src, rect, {}, 0, fill)
+                dst := rl.Rectangle {
+                    group.rect.x + handle.bounds.x,
+                    group.rect.y + handle.bounds.y,
+                    group.rect.z * group.scale.x,
+                    group.rect.w * group.scale.y,
+                }
+
+                rl.DrawTexturePro(texture.value^, src, dst, {}, 0, fill)
+
+                rl.DrawRectangleLinesEx(dst, 1, {255, 255, 255, 255})
+            }
+
+            case gui.Text_Group: {
+                rl.DrawRectangleRec(rect, fill)
+
+                font := res.holder_find(&self.fonts, group.slot)
+
+                if font.slot == 0 { continue }
+
+                clone, error := strings.clone_to_cstring(group.value,
+                    context.temp_allocator)
+
+                if error == nil {
+                    x := handle.bounds.x + group.rect.x
+                    y := handle.bounds.y + group.rect.y
+
+                    rl.DrawTextPro(font.value^, clone, {x, y}, {0, 0}, 0,
+                        group.size, group.space, {255, 255, 255, 255})
+
+                    rl.DrawRectangleLines(i32(x), i32(y), i32(group.rect.z),
+                        i32(group.rect.w), {255, 255, 255, 255})
+
+                    mem.free_all(context.temp_allocator)
+                }
             }
 
             case nil: rl.DrawRectangleRec(rect, fill)

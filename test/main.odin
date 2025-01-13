@@ -12,6 +12,7 @@ App_State :: struct
 {
     gui:      gui.State,
     textures: res.Holder(res.Texture),
+    fonts:    res.Holder(res.Font),
 
     atlas: int,
 }
@@ -30,7 +31,8 @@ main :: proc()
     rl.InitWindow(1280, 720, "GUI")
 
     res.holder_init(&app.textures)
-    gui.init(&app.gui, &app.textures)
+    res.holder_init(&app.fonts)
+    gui.init(&app.gui, &app.textures, &app.fonts)
 
     app.atlas, _ = res.holder_insert(&app.textures,
         res.texture_read("data/atlas.png"))
