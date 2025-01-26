@@ -1,280 +1,91 @@
 package demo
 
+import "core:fmt"
 import "core:log"
-import "core:strings"
-import "core:mem"
 
-import rl  "vendor:raylib"
-import pax "../pax"
-import gui "../pax/gui"
-import res "../pax/res"
+import "../pax"
 
-Game_Stage :: struct {}
-
-game_stage_start :: proc(self: ^Game_Stage) -> bool
+Demo :: struct
 {
-    rl.SetWindowState({.WINDOW_RESIZABLE, .WINDOW_HIDDEN})
-    rl.InitWindow(1280, 720, "GUI")
+    using app: pax.App,
+
+    window:   pax.Window_Handle,
+    mouse:    pax.Mouse_State,
+    keyboard: pax.Keyboard_State,
+}
+
+Demo_Layer :: struct
+{
+    demo: ^Demo,
+}
+
+demo_layer_start :: proc(self: ^Demo_Layer, demo: ^Demo) -> bool
+{
+    self.demo = demo
 
     return true
 }
 
-game_stage_stop  :: proc(self: ^Game_Stage)
+demo_layer_event :: proc(self: ^Demo_Layer, event: pax.Event) -> bool
 {
-    rl.CloseWindow()
-}
+    pax.keyboard_update(&self.demo.keyboard)
+    pax.mouse_update(&self.demo.mouse)
 
-game_stage :: proc(self: ^Game_Stage) -> pax.Stage
-{
-    value := pax.STAGE
+    #partial switch type in event {
+        case pax.App_Close_Event: pax.app_stack_pop(self.demo)
 
-    value.self       = auto_cast self
-    value.proc_start = auto_cast game_stage_start
-    value.proc_stop  = auto_cast game_stage_stop
-
-    return value
-}
-
-Demo_Scene :: struct
-{
-    gui: gui.State,
-
-    textures: res.Holder(res.Texture),
-    fonts:    res.Holder(res.Font),
-
-    atlas:   int,
-    default: int,
-
-    state: int,
-
-    value:  f32,
-    colors: [3][4]u8,
-    color:  int,
-}
-
-demo_scene_start :: proc(self: ^Demo_Scene, stage: ^Game_Stage) -> bool
-{
-    res.holder_init(&self.textures)
-    res.holder_init(&self.fonts)
-
-    gui.init(&self.gui, &self.textures, &self.fonts)
-
-    self.atlas, _   = res.texture_read_and_insert(&self.textures, "data/atlas.png")
-    self.default, _ = res.holder_insert(&self.fonts, res.font_default())
-
-    self.colors = {
-        {192,  64,  64, 255},
-        { 64, 192,  64, 255},
-        { 64,  64, 192, 255},
+        case pax.Keyboard_Event: pax.keyboard_event(&self.demo.keyboard, type)
+        case pax.Mouse_Event:    pax.mouse_event(&self.demo.mouse, type)
     }
 
-    rl.ClearWindowState({.WINDOW_HIDDEN})
-
-    return true
-}
-
-demo_scene_stop :: proc(self: ^Demo_Scene)
-{
-    // empty.
-}
-
-demo_scene_frame :: proc(self: ^Demo_Scene)
-{
-    gui.flush(&self.gui)
-    gui.update(&self.gui, rl.GetMouseDelta())
-
-    window_rect := [4]f32 {
-        0, 0,
-        f32(rl.GetScreenWidth()),
-        f32(rl.GetScreenHeight()),
+    if pax.keyboard_test_key(&self.demo.keyboard, .KEY_ESCAPE) {
+        pax.app_stack_push(self.demo, 1)
     }
 
-    root, _ := gui.insert_root(&self.gui, {
-        offset = window_rect,
-        fill   = {32, 32, 32, 255},
-    })
-
-    list, _ := gui.insert_child(&self.gui, root, {
-        origin = {0.5, 0.5},
-        factor = {0.5, 0.5, 0.34, 0.75},
-        group  = gui.List_Group {
-            direction = .ROW,
-            between   = 8,
-        }
-    })
-
-    button, _ := gui.insert_child(&self.gui, list, {
-        offset = {0, 0, 128, 32},
-        origin = {0.5, 0.5},
-        factor = {0.5, 0.5, 1, 0},
-        fill   = self.colors[self.color],
-        group  = gui.Text_Group {
-            slot  = self.default,
-            size  = 60,
-            value = "Ginger Bill",
-            space = 5,
-        }
-    })
-
-    slider, _ := gui.insert_child(&self.gui, list, {
-        offset = {0, 0, 32, 32},
-        origin = {0.5, 0.5},
-        factor = {0.5, 0.5, 0, 0},
-        fill   = [4]u8 {255, 255, 255, u8(self.value)},
-        group  = gui.Image_Group {
-            slot  = self.atlas,
-            scale = {3, 3},
-        },
-    })
-
-    gui.layout(&self.gui)
-
-    button_info := gui.Button_Info {
-        pressed  = b8(rl.IsMouseButtonPressed(.LEFT)),
-        released = b8(rl.IsMouseButtonReleased(.LEFT)),
-    }
-
-    slider_info := gui.Slider_Info {
-        pressed  = b8(rl.IsMouseButtonPressed(.LEFT)),
-        released = b8(rl.IsMouseButtonReleased(.LEFT)),
-        movement = self.gui.delta.x,
-        range    = {0, 255},
-        step     = 1,
-    }
-
-    gui.button(&self.gui, list, button_info)
-
-    if gui.button(&self.gui, button, button_info) {
-        self.color += 1
-        self.color %= len(self.colors)
-    }
-
-    gui.slider(&self.gui, slider, slider_info, &self.value)
+    return false
 }
 
-demo_scene_input :: proc(self: ^Demo_Scene) -> int
+demo_layer :: proc(self: ^Demo_Layer) -> pax.Layer
 {
-    if rl.WindowShouldClose() { self.state = -1 }
+    value := pax.LAYER
 
-    return self.state
-}
+    value.self = auto_cast self
 
-demo_scene_step  :: proc(self: ^Demo_Scene, delta: f32)
-{
-    // empty.
-}
+    value.proc_start = auto_cast demo_layer_start
+    value.proc_event = auto_cast demo_layer_event
 
-demo_scene_draw  :: proc(self: ^Demo_Scene)
-{
-    rl.ClearBackground({255, 255, 255, 255})
-    rl.BeginDrawing()
-
-    for slot in 1 ..= len(self.gui.nodes) {
-        handle := gui.find(&self.gui, slot)
-
-        rect := rl.Rectangle {
-            handle.bounds.x, handle.bounds.y,
-            handle.bounds.z, handle.bounds.w,
-        }
-
-        fill := rl.Color {
-            handle.fill.r, handle.fill.g,
-            handle.fill.b, handle.fill.a,
-        }
-
-        #partial switch &group in handle.group {
-            case gui.Image_Group: {
-                texture := res.holder_find(&self.textures, group.slot)
-
-                if texture.slot == 0 { continue }
-
-                src := rl.Rectangle {
-                    0, 0, group.rect.z, group.rect.w
-                }
-
-                dst := rl.Rectangle {
-                    group.rect.x + handle.bounds.x,
-                    group.rect.y + handle.bounds.y,
-                    group.rect.z * group.scale.x,
-                    group.rect.w * group.scale.y,
-                }
-
-                rl.DrawTexturePro(texture.value^, src, dst, {}, 0, fill)
-
-                rl.DrawRectangleLinesEx(dst, 1, {255, 255, 255, 255})
-            }
-
-            case gui.Text_Group: {
-                rl.DrawRectangleRec(rect, fill)
-
-                font := res.holder_find(&self.fonts, group.slot)
-
-                if font.slot == 0 { continue }
-
-                clone, error := strings.clone_to_cstring(group.value,
-                    context.temp_allocator)
-
-                if error == nil {
-                    x := handle.bounds.x + group.rect.x
-                    y := handle.bounds.y + group.rect.y
-
-                    rl.DrawTextPro(font.value^, clone, {x, y}, {0, 0}, 0,
-                        group.size, group.space, {255, 255, 255, 255})
-
-                    rl.DrawRectangleLines(i32(x), i32(y), i32(group.rect.z),
-                        i32(group.rect.w), {255, 255, 255, 255})
-
-                    mem.free_all(context.temp_allocator)
-                }
-            }
-
-            case nil: rl.DrawRectangleRec(rect, fill)
-        }
-
-        if gui.is_active(&self.gui, handle) {
-            rl.DrawRectangleLinesEx(rect, 2, {255, 255, 255, 255})
-        }
-
-        if gui.is_target(&self.gui, handle) {
-            rl.DrawRectangleRec(rect, {255, 255, 255, 32})
-        }
+    value.proc_enter = auto_cast proc(self: ^Demo_Layer)
+    {
+        fmt.printf("Enter demo\n")
     }
 
-    rl.EndDrawing()
-}
-
-demo_scene :: proc(self: ^Demo_Scene) -> pax.Scene
-{
-    value := pax.SCENE
-
-    value.self       = auto_cast self
-    value.proc_start = auto_cast demo_scene_start
-    value.proc_stop  = auto_cast demo_scene_stop
-    value.proc_frame = auto_cast demo_scene_frame
-    value.proc_input = auto_cast demo_scene_input
-    value.proc_step  = auto_cast demo_scene_step
-    value.proc_draw  = auto_cast demo_scene_draw
+    value.proc_leave = auto_cast proc(self: ^Demo_Layer)
+    {
+        fmt.printf("Leave demo\n")
+    }
 
     return value
 }
 
 main :: proc()
 {
-    context.logger = log.create_console_logger(lowest = .Debug)
+    context.logger = log.create_console_logger()
 
-    game := Game_Stage {}
-    demo := Demo_Scene {}
+    demo   := Demo {}
+    demo_l := Demo_Layer {}
 
-    stage := game_stage(&game)
+    pax.app_init(&demo)
 
-    pax.stage_init(&stage)
-    pax.stage_create(&stage, demo_scene(&demo))
+    demo.window = pax.window_init({640, 360}, "Pax")
 
-    pax.stage_loop(&stage, {
+    demo_h := pax.app_create_layer(&demo, demo_layer(&demo_l))
+
+    pax.app_loop(&demo, {
+        first_layer    = demo_h,
         max_frame_rate = 60,
-        max_frame_skip = 1,
-        first_scene    = 1,
+        max_frame_skip = 60,
     })
 
-    pax.stage_destroy(&stage)
+    pax.window_destroy(&demo.window)
+    pax.app_destroy(&demo)
 }

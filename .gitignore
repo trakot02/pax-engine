@@ -1,6 +1,7 @@
 # Exclude
-out/
 .*
+*.exe
+*.pdb
 
 # Include
 !.gitignore

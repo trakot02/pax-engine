@@ -1,2 +1,4 @@
-odin build demo -out:out/demo.exe -debug
-odin build test -out:out/test.exe -debug
+clear
+
+odin build demo -out:demo_debug.exe -debug
+odin build test -out:test_debug.exe -debug
