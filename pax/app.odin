@@ -5,8 +5,10 @@ import "core:time"
 
 App :: struct
 {
-    table: Slot_Table(Layer),
+    input: Input,
     stack: Layer_Stack,
+
+    table: Slot_Table(Layer),
 }
 
 App_Config :: struct
@@ -16,12 +18,14 @@ App_Config :: struct
     max_frame_skip: int,
 }
 
-app_init :: proc(self: ^App, allocator := context.allocator)
+app_init :: proc(base: ^App, allocator := context.allocator) -> App
 {
     backend_init()
 
-    slot_table_init(&self.table)
-    layer_stack_init(&self.stack)
+    base.table = slot_table_init(Layer, allocator)
+    base.stack = layer_stack_init(allocator)
+
+    return base^
 }
 
 app_destroy :: proc(self: ^App)
@@ -152,7 +156,11 @@ app_event :: proc(self: ^App)
 {
     event := poll_event()
 
+    input_reset(&self.input)
+
     for ; event != nil; event = poll_event() {
+        input_event(&self.input, event)
+
         it := layer_stack_it(&self.stack)
 
         for layer in layer_stack_next_reverse(&it) {
@@ -186,4 +194,49 @@ app_draw :: proc(self: ^App)
     for layer in layer_stack_next(&it) {
         layer_draw(layer)
     }
+}
+
+app_test_mouse_btn :: proc(self: ^App, slot: int, button: Mouse_Button) -> bool
+{
+    return input_test_mouse_btn(&self.input, slot, button)
+}
+
+app_get_mouse_btn :: proc(self: ^App, slot: int, button: Mouse_Button) -> Button_State
+{
+    return input_get_mouse_btn(&self.input, slot, button)
+}
+
+app_get_mouse_wheel :: proc(self: ^App, slot: int) -> [2]f32
+{
+    return input_get_mouse_wheel(&self.input, slot)
+}
+
+app_get_mouse_position :: proc(self: ^App, slot: int) -> [2]f32
+{
+    return input_get_mouse_position(&self.input, slot)
+}
+
+app_get_mouse_movement :: proc(self: ^App, slot: int) -> [2]f32
+{
+    return input_get_mouse_movement(&self.input, slot)
+}
+
+app_test_keyboard_btn :: proc(self: ^App, slot: int, button: Keyboard_Button) -> bool
+{
+    return input_test_keyboard_btn(&self.input, slot, button)
+}
+
+app_get_keyboard_btn :: proc(self: ^App, slot: int, button: Keyboard_Button) -> Button_State
+{
+    return input_get_keyboard_btn(&self.input, slot, button)
+}
+
+app_test_keyboard_key :: proc(self: ^App, slot: int, key: Keyboard_Key) -> bool
+{
+    return input_test_keyboard_key(&self.input, slot, key)
+}
+
+app_get_keyboard_key :: proc(self: ^App, slot: int, key: Keyboard_Key) -> Button_State
+{
+    return input_get_keyboard_key(&self.input, slot, key)
 }

@@ -41,19 +41,6 @@ Mouse_Button :: enum i32
     BTN_RIGHT,
 }
 
-Mouse_Event :: struct
-{
-    slot: int,
-
-    button: Mouse_Button,
-    press:  b32,
-
-    wheel: [2]f32,
-
-    position: [2]f32,
-    movement: [2]f32,
-}
-
 Mouse_State :: struct
 {
     slot: int,
@@ -158,14 +145,6 @@ Keyboard_Key :: enum i32
     KEY_9,
 }
 
-Keyboard_Event :: struct
-{
-    slot: int,
-
-    button: Keyboard_Button,
-    press:  b32,
-}
-
 Keyboard_State :: struct
 {
     slot: int,
@@ -173,11 +152,10 @@ Keyboard_State :: struct
     buttons: [Keyboard_Button]Button_State,
 }
 
-App_Close_Event :: struct {}
-
-Event :: union
+Input :: struct
 {
-    App_Close_Event, Mouse_Event, Keyboard_Event,
+    mouse:    Mouse_State,
+    keyboard: Keyboard_State,
 }
 
 mouse_event :: proc(self: ^Mouse_State, event: Mouse_Event)
@@ -198,7 +176,7 @@ mouse_event :: proc(self: ^Mouse_State, event: Mouse_Event)
     self.movement = event.movement
 }
 
-mouse_update :: proc(self: ^Mouse_State)
+mouse_reset :: proc(self: ^Mouse_State)
 {
     for &button in self.buttons {
         button = UPDATE_TABLE[button]
@@ -243,7 +221,7 @@ keyboard_event :: proc(self: ^Keyboard_State, event: Keyboard_Event)
     }
 }
 
-keyboard_update :: proc(self: ^Keyboard_State)
+keyboard_reset :: proc(self: ^Keyboard_State)
 {
     for &button in self.buttons {
         button = UPDATE_TABLE[button]
@@ -255,17 +233,112 @@ keyboard_test_btn :: proc(self: ^Keyboard_State, button: Keyboard_Button) -> boo
     return TEST_TABLE[self.buttons[button]]
 }
 
-keyboard_test_key :: proc(self: ^Keyboard_State, key: Keyboard_Key) -> bool
-{
-    return keyboard_test_btn(self, keyboard_key_to_button(key))
-}
-
 keyboard_get_btn :: proc(self: ^Keyboard_State, button: Keyboard_Button) -> Button_State
 {
     return self.buttons[button]
 }
 
+keyboard_test_key :: proc(self: ^Keyboard_State, key: Keyboard_Key) -> bool
+{
+    return keyboard_test_btn(self, keyboard_key_to_button(key))
+}
+
 keyboard_get_key :: proc(self: ^Keyboard_State, key: Keyboard_Key) -> Button_State
 {
     return keyboard_get_btn(self, keyboard_key_to_button(key))
+}
+
+input_event :: proc(self: ^Input, event: Event)
+{
+    #partial switch type in event {
+        case Mouse_Event:    mouse_event(&self.mouse, type)
+        case Keyboard_Event: keyboard_event(&self.keyboard, type)
+    }
+}
+
+input_reset :: proc(self: ^Input)
+{
+    mouse_reset(&self.mouse)
+    keyboard_reset(&self.keyboard)
+}
+
+input_test_mouse_btn :: proc(self: ^Input, slot: int, button: Mouse_Button) -> bool
+{
+    if slot != self.mouse.slot {
+        return false
+    }
+
+    return mouse_test_btn(&self.mouse, button)
+}
+
+input_get_mouse_btn :: proc(self: ^Input, slot: int, button: Mouse_Button) -> Button_State
+{
+    if slot != self.mouse.slot {
+        return .IDLE
+    }
+
+    return mouse_get_btn(&self.mouse, button)
+}
+
+input_get_mouse_wheel :: proc(self: ^Input, slot: int) -> [2]f32
+{
+    if slot != self.mouse.slot {
+        return {0, 0}
+    }
+
+    return self.mouse.wheel
+}
+
+input_get_mouse_position :: proc(self: ^Input, slot: int) -> [2]f32
+{
+    if slot != self.mouse.slot {
+        return {0, 0}
+    }
+
+    return self.mouse.position
+}
+
+input_get_mouse_movement :: proc(self: ^Input, slot: int) -> [2]f32
+{
+    if slot != self.mouse.slot {
+        return {0, 0}
+    }
+
+    return self.mouse.movement
+}
+
+input_test_keyboard_btn :: proc(self: ^Input, slot: int, button: Keyboard_Button) -> bool
+{
+    if slot != self.keyboard.slot {
+        return false
+    }
+
+    return keyboard_test_btn(&self.keyboard, button)
+}
+
+input_get_keyboard_btn :: proc(self: ^Input, slot: int, button: Keyboard_Button) -> Button_State
+{
+    if slot != self.keyboard.slot {
+        return .IDLE
+    }
+
+    return keyboard_get_btn(&self.keyboard, button)
+}
+
+input_test_keyboard_key :: proc(self: ^Input, slot: int, key: Keyboard_Key) -> bool
+{
+    if slot != self.keyboard.slot {
+        return false
+    }
+
+    return keyboard_test_key(&self.keyboard, key)
+}
+
+input_get_keyboard_key :: proc(self: ^Input, slot: int, key: Keyboard_Key) -> Button_State
+{
+    if slot != self.keyboard.slot {
+        return .IDLE
+    }
+
+    return keyboard_get_key(&self.keyboard, key)
 }

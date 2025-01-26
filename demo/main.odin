@@ -9,9 +9,7 @@ Demo :: struct
 {
     using app: pax.App,
 
-    window:   pax.Window_Handle,
-    mouse:    pax.Mouse_State,
-    keyboard: pax.Keyboard_State,
+    window: pax.Window_Handle,
 }
 
 Demo_Layer :: struct
@@ -28,17 +26,11 @@ demo_layer_start :: proc(self: ^Demo_Layer, demo: ^Demo) -> bool
 
 demo_layer_event :: proc(self: ^Demo_Layer, event: pax.Event) -> bool
 {
-    pax.keyboard_update(&self.demo.keyboard)
-    pax.mouse_update(&self.demo.mouse)
-
     #partial switch type in event {
         case pax.App_Close_Event: pax.app_stack_pop(self.demo)
-
-        case pax.Keyboard_Event: pax.keyboard_event(&self.demo.keyboard, type)
-        case pax.Mouse_Event:    pax.mouse_event(&self.demo.mouse, type)
     }
 
-    if pax.keyboard_test_key(&self.demo.keyboard, .KEY_ESCAPE) {
+    if pax.app_test_keyboard_key(self.demo, 0, .KEY_ESCAPE) {
         pax.app_stack_push(self.demo, 1)
     }
 
@@ -76,7 +68,7 @@ main :: proc()
 
     pax.app_init(&demo)
 
-    demo.window = pax.window_init({640, 360}, "Pax")
+    demo.window = pax.window_init({320, 180}, "Pax")
 
     demo_h := pax.app_create_layer(&demo, demo_layer(&demo_l))
 

@@ -21,9 +21,13 @@ Slot_Table_It :: struct ($T: typeid)
     index: int,
 }
 
-slot_table_init :: proc(self: ^Slot_Table($T), allocator := context.allocator)
+slot_table_init :: proc($T: typeid, allocator := context.allocator) -> Slot_Table(T)
 {
-    self.items = make([dynamic]Slot(T), allocator)
+    value := Slot_Table(T) {}
+
+    value.items = make([dynamic]Slot(T), allocator)
+
+    return value
 }
 
 slot_table_destroy :: proc(self: ^Slot_Table($T))

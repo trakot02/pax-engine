@@ -85,9 +85,13 @@ layer_draw :: proc(self: ^Layer)
     self.proc_draw(self.self)
 }
 
-layer_stack_init :: proc(self: ^Layer_Stack, allocator := context.allocator)
+layer_stack_init :: proc(allocator := context.allocator) -> Layer_Stack
 {
-    self.items = make([dynamic]Layer, allocator)
+    value := Layer_Stack {}
+
+    value.items = make([dynamic]Layer, allocator)
+
+    return value
 }
 
 layer_stack_destroy :: proc(self: ^Layer_Stack)
