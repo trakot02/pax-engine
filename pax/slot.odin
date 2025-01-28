@@ -2,6 +2,10 @@ package pax
 
 import "core:log"
 
+//
+// Definitions
+//
+
 Slot :: union ($T: typeid)
 {
     T, int
@@ -15,19 +19,21 @@ Slot_Table :: struct ($T: typeid)
     items: [dynamic]Slot(T),
 }
 
-Slot_Table_It :: struct ($T: typeid)
+Slot_Table_Iter :: struct ($T: typeid)
 {
     table: ^Slot_Table(T),
     index: int,
 }
 
+//
+// Functions
+//
+
 slot_table_init :: proc($T: typeid, allocator := context.allocator) -> Slot_Table(T)
 {
-    value := Slot_Table(T) {}
-
-    value.items = make([dynamic]Slot(T), allocator)
-
-    return value
+    return Slot_Table(T) {
+        items = make([dynamic]Slot(T), allocator)
+    }
 }
 
 slot_table_destroy :: proc(self: ^Slot_Table($T))
@@ -120,20 +126,21 @@ slot_table_size :: proc(self: ^Slot_Table($T)) -> int
     return len(self.items) - self.count
 }
 
-slot_table_it :: proc(self: ^Slot_Table($T)) -> Slot_Table_It(T)
+slot_table_iter :: proc(self: ^Slot_Table($T)) -> Slot_Table_Iter(T)
 {
-    return {
+    return Slot_Table_Iter(T) {
         table = self,
         index = 1,
     }
 }
 
-slot_table_next :: proc(self: ^Slot_Table_It($T)) -> (^T, int, bool)
+slot_table_next :: proc(self: ^Slot_Table_Iter($T)) -> (^T, int, bool)
 {
     handle := Handle(T) {}
+    size   := slot_table_size(self.table)
 
-    for ; handle_test(&handle) == false; self.index += 1 {
-        if self.index > slot_table_size(self.table) {
+    for ; handle.slot == 0; self.index += 1 {
+        if self.index <= 0 || self.index > size {
             return nil, 0, false
         }
 

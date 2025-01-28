@@ -1,6 +1,14 @@
 package pax
 
+//
+// Variables
+//
+
 BACKEND :: Backend.SDL2
+
+//
+// Definitions
+//
 
 Backend :: enum
 {
@@ -11,13 +19,17 @@ when BACKEND == .SDL2 {
     backend_init    :: sdl2_backend_init
     backend_destroy :: sdl2_backend_destroy
 
-    poll_event :: sdl2_poll_event
-
     keyboard_key_to_button :: sdl2_keyboard_key_to_button
 
-    Window_Handle :: sdl2_Window_Handle
+    poll_event :: sdl2_poll_event
 
-    window_init    :: sdl2_window_init
-    window_destroy :: sdl2_window_destroy
-    window_size    :: sdl2_window_size
+    Window :: sdl2_Window
+
+    window_main         :: sdl2_window_main
+    window_init         :: sdl2_window_init
+    window_destroy      :: sdl2_window_destroy
+    window_swap_buffers :: sdl2_window_swap_buffers
+    window_size         :: sdl2_window_size
+    window_show         :: sdl2_window_show
+    window_hide         :: sdl2_window_hide
 }

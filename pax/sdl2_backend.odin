@@ -5,6 +5,11 @@ import "core:strings"
 import "core:mem"
 
 import sdl "vendor:sdl2"
+import gl  "vendor:OpenGL"
+
+//
+// Variables
+//
 
 SDL2_BUTTON_PRESS := [2]b32 {
     sdl.PRESSED  = true,
@@ -12,12 +17,12 @@ SDL2_BUTTON_PRESS := [2]b32 {
 }
 
 SDL2_MOUSE_BUTTON := [4]Mouse_Button {
-    sdl.BUTTON_LEFT   = Mouse_Button.BTN_LEFT,
-    sdl.BUTTON_MIDDLE = Mouse_Button.BTN_MIDDLE,
-    sdl.BUTTON_RIGHT  = Mouse_Button.BTN_RIGHT,
+    sdl.BUTTON_LEFT   = .BTN_LEFT,
+    sdl.BUTTON_MIDDLE = .BTN_MIDDLE,
+    sdl.BUTTON_RIGHT  = .BTN_RIGHT,
 }
 
-SDL2_SCANCODE_TO_KEYBOARD_BUTTON := [512]Keyboard_Button {
+SDL2_KEYBOARD_BUTTON := [512]Keyboard_Button {
     sdl.Scancode.RETURN = .BTN_ENTER,
     sdl.Scancode.ESCAPE = .BTN_ESCAPE,
 
@@ -63,118 +68,162 @@ SDL2_SCANCODE_TO_KEYBOARD_BUTTON := [512]Keyboard_Button {
 SDL2_KEYBOARD_BUTTON_TO_SCANCODE := [Keyboard_Button]sdl.Scancode {
     .BTN_NONE = sdl.Scancode(0),
 
-    .BTN_ENTER  = sdl.Scancode.RETURN,
-    .BTN_ESCAPE = sdl.Scancode.ESCAPE,
+    .BTN_ENTER  = .RETURN,
+    .BTN_ESCAPE = .ESCAPE,
 
-    .BTN_A = sdl.Scancode.A,
-    .BTN_B = sdl.Scancode.B,
-    .BTN_C = sdl.Scancode.C,
-    .BTN_D = sdl.Scancode.D,
-    .BTN_E = sdl.Scancode.E,
-    .BTN_F = sdl.Scancode.F,
-    .BTN_G = sdl.Scancode.G,
-    .BTN_H = sdl.Scancode.H,
-    .BTN_I = sdl.Scancode.I,
-    .BTN_J = sdl.Scancode.J,
-    .BTN_K = sdl.Scancode.K,
-    .BTN_L = sdl.Scancode.L,
-    .BTN_M = sdl.Scancode.M,
-    .BTN_N = sdl.Scancode.N,
-    .BTN_O = sdl.Scancode.O,
-    .BTN_P = sdl.Scancode.P,
-    .BTN_Q = sdl.Scancode.Q,
-    .BTN_R = sdl.Scancode.R,
-    .BTN_S = sdl.Scancode.S,
-    .BTN_T = sdl.Scancode.T,
-    .BTN_U = sdl.Scancode.U,
-    .BTN_V = sdl.Scancode.V,
-    .BTN_W = sdl.Scancode.W,
-    .BTN_X = sdl.Scancode.X,
-    .BTN_Y = sdl.Scancode.Y,
-    .BTN_Z = sdl.Scancode.Z,
+    .BTN_A = .A,
+    .BTN_B = .B,
+    .BTN_C = .C,
+    .BTN_D = .D,
+    .BTN_E = .E,
+    .BTN_F = .F,
+    .BTN_G = .G,
+    .BTN_H = .H,
+    .BTN_I = .I,
+    .BTN_J = .J,
+    .BTN_K = .K,
+    .BTN_L = .L,
+    .BTN_M = .M,
+    .BTN_N = .N,
+    .BTN_O = .O,
+    .BTN_P = .P,
+    .BTN_Q = .Q,
+    .BTN_R = .R,
+    .BTN_S = .S,
+    .BTN_T = .T,
+    .BTN_U = .U,
+    .BTN_V = .V,
+    .BTN_W = .W,
+    .BTN_X = .X,
+    .BTN_Y = .Y,
+    .BTN_Z = .Z,
 
-    .BTN_0 = sdl.Scancode.NUM0,
-    .BTN_1 = sdl.Scancode.NUM1,
-    .BTN_2 = sdl.Scancode.NUM2,
-    .BTN_3 = sdl.Scancode.NUM3,
-    .BTN_4 = sdl.Scancode.NUM4,
-    .BTN_5 = sdl.Scancode.NUM5,
-    .BTN_6 = sdl.Scancode.NUM6,
-    .BTN_7 = sdl.Scancode.NUM7,
-    .BTN_8 = sdl.Scancode.NUM8,
-    .BTN_9 = sdl.Scancode.NUM9,
+    .BTN_0 = .NUM0,
+    .BTN_1 = .NUM1,
+    .BTN_2 = .NUM2,
+    .BTN_3 = .NUM3,
+    .BTN_4 = .NUM4,
+    .BTN_5 = .NUM5,
+    .BTN_6 = .NUM6,
+    .BTN_7 = .NUM7,
+    .BTN_8 = .NUM8,
+    .BTN_9 = .NUM9,
 }
 
 SDL2_KEYBOARD_KEY_TO_KEYCODE := [Keyboard_Key]sdl.Keycode {
     .KEY_NONE = sdl.Keycode(0),
 
-    .KEY_ENTER  = sdl.Keycode.RETURN,
-    .KEY_ESCAPE = sdl.Keycode.ESCAPE,
+    .KEY_ENTER  = .RETURN,
+    .KEY_ESCAPE = .ESCAPE,
 
-    .KEY_A = sdl.Keycode.A,
-    .KEY_B = sdl.Keycode.B,
-    .KEY_C = sdl.Keycode.C,
-    .KEY_D = sdl.Keycode.D,
-    .KEY_E = sdl.Keycode.E,
-    .KEY_F = sdl.Keycode.F,
-    .KEY_G = sdl.Keycode.G,
-    .KEY_H = sdl.Keycode.H,
-    .KEY_I = sdl.Keycode.I,
-    .KEY_J = sdl.Keycode.J,
-    .KEY_K = sdl.Keycode.K,
-    .KEY_L = sdl.Keycode.L,
-    .KEY_M = sdl.Keycode.M,
-    .KEY_N = sdl.Keycode.N,
-    .KEY_O = sdl.Keycode.O,
-    .KEY_P = sdl.Keycode.P,
-    .KEY_Q = sdl.Keycode.Q,
-    .KEY_R = sdl.Keycode.R,
-    .KEY_S = sdl.Keycode.S,
-    .KEY_T = sdl.Keycode.T,
-    .KEY_U = sdl.Keycode.U,
-    .KEY_V = sdl.Keycode.V,
-    .KEY_W = sdl.Keycode.W,
-    .KEY_X = sdl.Keycode.X,
-    .KEY_Y = sdl.Keycode.Y,
-    .KEY_Z = sdl.Keycode.Z,
+    .KEY_A = .A,
+    .KEY_B = .B,
+    .KEY_C = .C,
+    .KEY_D = .D,
+    .KEY_E = .E,
+    .KEY_F = .F,
+    .KEY_G = .G,
+    .KEY_H = .H,
+    .KEY_I = .I,
+    .KEY_J = .J,
+    .KEY_K = .K,
+    .KEY_L = .L,
+    .KEY_M = .M,
+    .KEY_N = .N,
+    .KEY_O = .O,
+    .KEY_P = .P,
+    .KEY_Q = .Q,
+    .KEY_R = .R,
+    .KEY_S = .S,
+    .KEY_T = .T,
+    .KEY_U = .U,
+    .KEY_V = .V,
+    .KEY_W = .W,
+    .KEY_X = .X,
+    .KEY_Y = .Y,
+    .KEY_Z = .Z,
 
-    .KEY_0 = sdl.Keycode.NUM0,
-    .KEY_1 = sdl.Keycode.NUM1,
-    .KEY_2 = sdl.Keycode.NUM2,
-    .KEY_3 = sdl.Keycode.NUM3,
-    .KEY_4 = sdl.Keycode.NUM4,
-    .KEY_5 = sdl.Keycode.NUM5,
-    .KEY_6 = sdl.Keycode.NUM6,
-    .KEY_7 = sdl.Keycode.NUM7,
-    .KEY_8 = sdl.Keycode.NUM8,
-    .KEY_9 = sdl.Keycode.NUM9,
+    .KEY_0 = .NUM0,
+    .KEY_1 = .NUM1,
+    .KEY_2 = .NUM2,
+    .KEY_3 = .NUM3,
+    .KEY_4 = .NUM4,
+    .KEY_5 = .NUM5,
+    .KEY_6 = .NUM6,
+    .KEY_7 = .NUM7,
+    .KEY_8 = .NUM8,
+    .KEY_9 = .NUM9,
 }
 
-sdl2_backend_init :: proc()
+sdl2_main_window := sdl2_Window {}
+
+//
+// Definitions
+//
+
+sdl2_Window :: struct
+{
+    value: ^sdl.Window,
+    glctx: sdl.GLContext,
+}
+
+//
+// Functions
+//
+
+sdl2_backend_init :: proc(size: [2]int, title: string) -> bool
 {
     sdl.Init(sdl.INIT_VIDEO)
+
+    window, state := sdl2_window_init(size, title)
+
+    if state == false {
+        sdl.Quit()
+
+        return false
+    }
+
+    sdl2_main_window = window
+
+    return true
 }
 
 sdl2_backend_destroy :: proc()
 {
+    sdl2_window_destroy(&sdl2_main_window)
+
     sdl.Quit()
+}
+
+sdl2_keyboard_key_to_button :: proc(key: Keyboard_Key) -> Keyboard_Button
+{
+    keycode  := SDL2_KEYBOARD_KEY_TO_KEYCODE[key]
+    scancode := sdl.GetScancodeFromKey(keycode)
+
+    return SDL2_KEYBOARD_BUTTON[scancode]
 }
 
 sdl2_poll_event :: proc() -> Event
 {
     event := sdl.Event {}
 
-    if sdl.PollEvent(&event) {
-        #partial switch event.type {
-            case .QUIT: return App_Close_Event {}
+    if sdl.PollEvent(&event) == false { return nil }
 
-            case .MOUSEMOTION:     return sdl2_mouse_motion_to_event(event.motion)
-            case .MOUSEWHEEL:      return sdl2_mouse_wheel_to_event(event.wheel)
-            case .MOUSEBUTTONDOWN: return sdl2_mouse_button_to_event(event.button)
-            case .MOUSEBUTTONUP:   return sdl2_mouse_button_to_event(event.button)
+    #partial switch event.type {
+        case .QUIT: return App_Close_Event {}
 
-            case .KEYDOWN: return sdl2_keyboard_button_to_event(event.key)
-            case .KEYUP:   return sdl2_keyboard_button_to_event(event.key)
+        case .MOUSEMOTION:     return sdl2_mouse_motion_to_event(event.motion)
+        case .MOUSEWHEEL:      return sdl2_mouse_wheel_to_event(event.wheel)
+        case .MOUSEBUTTONDOWN: return sdl2_mouse_button_to_event(event.button)
+        case .MOUSEBUTTONUP:   return sdl2_mouse_button_to_event(event.button)
+
+        case .KEYDOWN: return sdl2_keyboard_button_to_event(event.key)
+        case .KEYUP:   return sdl2_keyboard_button_to_event(event.key)
+
+        case .WINDOWEVENT: {
+            #partial switch event.window.event {
+                case .RESIZED: return sdl2_window_resize_to_event(event.window)
+            }
         }
     }
 
@@ -183,76 +232,60 @@ sdl2_poll_event :: proc() -> Event
 
 sdl2_mouse_motion_to_event :: proc(motion: sdl.MouseMotionEvent) -> Mouse_Event
 {
-    value := Mouse_Event {}
-    point := [2]i32 {}
+    return Mouse_Event {
+        slot = int(motion.which),
 
-    value.slot = int(motion.which)
-
-    sdl.GetMouseState(&point[0], &point[1])
-
-    value.position = {f32(point.x),     f32(point.y)}
-    value.movement = {f32(motion.xrel), f32(motion.yrel)}
-
-    return value
+        position = {f32(motion.x),    f32(motion.y)},
+        movement = {f32(motion.xrel), f32(motion.yrel)},
+    }
 }
 
 sdl2_mouse_wheel_to_event :: proc(wheel: sdl.MouseWheelEvent) -> Mouse_Event
 {
-    value := Mouse_Event {}
-    point := [2]i32 {}
+    return Mouse_Event {
+        slot = int(wheel.which),
 
-    value.slot = int(wheel.which)
-
-    sdl.GetMouseState(&point[0], &point[1])
-
-    value.wheel    = {f32(wheel.x), f32(wheel.y)}
-    value.position = {f32(point.x), f32(point.y)}
-
-    return value
+        wheel = {f32(wheel.x), f32(wheel.y)},
+    }
 }
 
 sdl2_mouse_button_to_event :: proc(button: sdl.MouseButtonEvent) -> Mouse_Event
 {
-    value := Mouse_Event {}
-    point := [2]i32 {}
+    return Mouse_Event {
+        slot = int(button.which),
 
-    value.slot = int(button.which)
-
-    sdl.GetMouseState(&point[0], &point[1])
-
-    value.button = SDL2_MOUSE_BUTTON[button.button]
-    value.press  = SDL2_BUTTON_PRESS[button.state]
-
-    value.position = {f32(point.x), f32(point.y)}
-
-    return value
+        button = SDL2_MOUSE_BUTTON[button.button],
+        press  = SDL2_BUTTON_PRESS[button.state],
+    }
 }
 
 sdl2_keyboard_button_to_event :: proc(button: sdl.KeyboardEvent) -> Keyboard_Event
 {
-    value := Keyboard_Event {}
+    return Keyboard_Event {
+        slot = 0,
 
-    value.slot   = int(0)
-    value.button = SDL2_SCANCODE_TO_KEYBOARD_BUTTON[button.keysym.scancode]
-    value.press  = SDL2_BUTTON_PRESS[button.state]
-
-    return value
+        button = SDL2_KEYBOARD_BUTTON[button.keysym.scancode],
+        press  = SDL2_BUTTON_PRESS[button.state],
+    }
 }
 
-sdl2_keyboard_key_to_button :: proc(key: Keyboard_Key) -> Keyboard_Button
+sdl2_window_resize_to_event :: proc(window: sdl.WindowEvent) -> Window_Resize_Event
 {
-    keycode  := SDL2_KEYBOARD_KEY_TO_KEYCODE[key]
-    scancode := sdl.GetScancodeFromKey(keycode)
+    return Window_Resize_Event {
+        slot = int(window.windowID),
 
-    return SDL2_SCANCODE_TO_KEYBOARD_BUTTON[scancode]
+        size = {int(window.data1), int(window.data2)},
+    }
 }
 
-sdl2_Window_Handle :: rawptr
-
-sdl2_window_init :: proc(size: [2]int, title: string) -> sdl2_Window_Handle
+sdl2_window_main :: proc() -> sdl2_Window
 {
-    width  := i32(size.x)
-    height := i32(size.y)
+    return sdl2_main_window
+}
+
+sdl2_window_init :: proc(size: [2]int, title: string) -> (sdl2_Window, bool)
+{
+    window := sdl2_Window {}
 
     clone, error := strings.clone_to_cstring(title,
         context.temp_allocator)
@@ -260,28 +293,80 @@ sdl2_window_init :: proc(size: [2]int, title: string) -> sdl2_Window_Handle
     if error != nil {
         log.errorf("Window: Unable to clone title to c-string")
 
-        return nil
+        return {}, false
     }
 
     defer mem.free_all(context.temp_allocator)
 
-    window := sdl.CreateWindow(clone, sdl.WINDOWPOS_CENTERED,
-        sdl.WINDOWPOS_CENTERED, width, height, {})
+    place  := i32(sdl.WINDOWPOS_CENTERED)
+    width  := i32(size.x)
+    height := i32(size.y)
+    flags  := sdl.WindowFlags {.OPENGL, .HIDDEN, .RESIZABLE}
 
-    return window
+    window.value = sdl.CreateWindow(clone, place, place, width, height, flags)
+
+    if window.value != nil {
+        sdl.GL_SetAttribute(.CONTEXT_MAJOR_VERSION, 3)
+        sdl.GL_SetAttribute(.CONTEXT_MINOR_VERSION, 3)
+        sdl.GL_SetAttribute(.CONTEXT_PROFILE_MASK, i32(sdl.GLprofile.CORE))
+        sdl.GL_SetAttribute(.DOUBLEBUFFER, 1)
+
+        window.glctx = sdl.GL_CreateContext(window.value)
+
+        if sdl.GL_MakeCurrent(window.value, window.glctx) == 0 {
+            gl.load_up_to(3, 3, sdl.gl_set_proc_address)
+            gl.Viewport(0, 0, width, height)
+
+            return window, true
+        }
+
+        sdl.DestroyWindow(window.value)
+    }
+
+    return {}, false
 }
 
-sdl2_window_destroy :: proc(self: ^sdl2_Window_Handle)
+sdl2_window_destroy :: proc(self: ^sdl2_Window = nil)
 {
-    sdl.DestroyWindow(cast(^sdl.Window) (self))
+    switch self != nil {
+        case true:  sdl.DestroyWindow(self.value)
+        case false: sdl.DestroyWindow(sdl2_main_window.value)
+    }
 }
 
-sdl2_window_size :: proc(self: ^sdl2_Window_Handle) -> [2]int
+sdl2_window_swap_buffers :: proc(self: ^sdl2_Window = nil)
+{
+    switch self != nil {
+        case true:  sdl.GL_SwapWindow(self.value)
+        case false: sdl.GL_SwapWindow(sdl2_main_window.value)
+    }
+}
+
+sdl2_window_size :: proc(self: ^sdl2_Window = nil) -> [2]int
 {
     width  := i32(0)
     height := i32(0)
 
-    sdl.GetWindowSize(cast (^sdl.Window) (self), &width, &height)
+    switch self != nil {
+        case true:  sdl.GetWindowSize(self.value, &width, &height)
+        case false: sdl.GetWindowSize(sdl2_main_window.value, &width, &height)
+    }
 
     return {int(width), int(height)}
+}
+
+sdl2_window_show :: proc(self: ^sdl2_Window = nil)
+{
+    switch self != nil {
+        case true:  sdl.ShowWindow(self.value)
+        case false: sdl.ShowWindow(sdl2_main_window.value)
+    }
+}
+
+sdl2_window_hide :: proc(self: ^sdl2_Window = nil)
+{
+    switch self != nil {
+        case true:  sdl.HideWindow(self.value)
+        case false: sdl.HideWindow(sdl2_main_window.value)
+    }
 }

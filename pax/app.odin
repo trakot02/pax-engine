@@ -3,10 +3,16 @@ package pax
 import "core:log"
 import "core:time"
 
+//
+// Definitions
+//
+
 App :: struct
 {
-    input: Input,
-    stack: Layer_Stack,
+    input:  Input_State,
+    stack:  Layer_Stack,
+    render: Render_State,
+    shader: Shader,
 
     table: Slot_Table(Layer),
 }
@@ -18,18 +24,36 @@ App_Config :: struct
     max_frame_skip: int,
 }
 
-app_init :: proc(base: ^App, allocator := context.allocator) -> App
+//
+// Functions
+//
+
+app_init :: proc(self: ^App, allocator := context.allocator) -> bool
 {
-    backend_init()
+    builder := Shader_Builder {}
 
-    base.table = slot_table_init(Layer, allocator)
-    base.stack = layer_stack_init(allocator)
+    backend_init({320, 180}, "Pax") or_return
 
-    return base^
+    shader_vertex(&builder, #load("../data/vertex.glsl")) or_return
+    shader_fragment(&builder, #load("../data/fragment.glsl")) or_return
+
+    self.table  = slot_table_init(Layer, allocator)
+    self.stack  = layer_stack_init(allocator)
+
+    self.render = render_init()
+    self.shader = shader_init(&builder) or_return
+
+    render_set_shader(&self.render, &self.shader)
+    render_set_viewport(&self.render, {0, 0, 320, 180})
+
+    return true
 }
 
 app_destroy :: proc(self: ^App)
 {
+    shader_destroy(&self.shader)
+    render_destroy(&self.render)
+
     layer_stack_destroy(&self.stack)
     slot_table_destroy(&self.table)
 
@@ -59,7 +83,7 @@ app_find_layer :: proc(self: ^App, slot: int) -> Handle(Layer)
 
 app_stack_clear :: proc(self: ^App)
 {
-    it := layer_stack_it(&self.stack)
+    it := layer_stack_iter(&self.stack)
 
     for layer in layer_stack_next(&it) {
         layer_leave(layer)
@@ -101,7 +125,7 @@ app_stack_set :: proc(self: ^App, slot: int) -> bool
 
 app_start :: proc(self: ^App)
 {
-    it := slot_table_it(&self.table)
+    it := slot_table_iter(&self.table)
 
     for layer in slot_table_next(&it) {
         layer_start(layer, self)
@@ -110,7 +134,7 @@ app_start :: proc(self: ^App)
 
 app_stop :: proc(self: ^App)
 {
-    it := slot_table_it(&self.table)
+    it := slot_table_iter(&self.table)
 
     for layer in slot_table_next(&it) {
         layer_stop(layer)
@@ -121,7 +145,7 @@ app_loop :: proc(self: ^App, config: App_Config) -> bool
 {
     tick := time.Tick {}
 
-    frame_rate: f64 = max(1, f64(config.max_frame_rate))
+    frame_rate: f64 = max(1.0, f64(config.max_frame_rate))
     frame_time: f64 = 0
     delta_time: f64 = 1.0 / frame_rate
     total_time: f64 = 0
@@ -161,7 +185,7 @@ app_event :: proc(self: ^App)
     for ; event != nil; event = poll_event() {
         input_event(&self.input, event)
 
-        it := layer_stack_it(&self.stack)
+        it := layer_stack_iter(&self.stack)
 
         for layer in layer_stack_next_reverse(&it) {
             if layer_event(layer, event) == false { break }
@@ -171,7 +195,7 @@ app_event :: proc(self: ^App)
 
 app_frame :: proc(self: ^App, delta_time: f32)
 {
-    it := layer_stack_it(&self.stack)
+    it := layer_stack_iter(&self.stack)
 
     for layer in layer_stack_next_reverse(&it) {
         layer_frame(layer, delta_time)
@@ -180,7 +204,7 @@ app_frame :: proc(self: ^App, delta_time: f32)
 
 app_step :: proc(self: ^App, delta_time: f32)
 {
-    it := layer_stack_it(&self.stack)
+    it := layer_stack_iter(&self.stack)
 
     for layer in layer_stack_next_reverse(&it) {
         layer_step(layer, delta_time)
@@ -189,54 +213,16 @@ app_step :: proc(self: ^App, delta_time: f32)
 
 app_draw :: proc(self: ^App)
 {
-    it := layer_stack_it(&self.stack)
+    render_clear_color(&self.render, {})
+    render_begin_batch(&self.render)
+
+    it := layer_stack_iter(&self.stack)
 
     for layer in layer_stack_next(&it) {
         layer_draw(layer)
     }
-}
 
-app_test_mouse_btn :: proc(self: ^App, slot: int, button: Mouse_Button) -> bool
-{
-    return input_test_mouse_btn(&self.input, slot, button)
-}
+    render_end_batch(&self.render)
 
-app_get_mouse_btn :: proc(self: ^App, slot: int, button: Mouse_Button) -> Button_State
-{
-    return input_get_mouse_btn(&self.input, slot, button)
-}
-
-app_get_mouse_wheel :: proc(self: ^App, slot: int) -> [2]f32
-{
-    return input_get_mouse_wheel(&self.input, slot)
-}
-
-app_get_mouse_position :: proc(self: ^App, slot: int) -> [2]f32
-{
-    return input_get_mouse_position(&self.input, slot)
-}
-
-app_get_mouse_movement :: proc(self: ^App, slot: int) -> [2]f32
-{
-    return input_get_mouse_movement(&self.input, slot)
-}
-
-app_test_keyboard_btn :: proc(self: ^App, slot: int, button: Keyboard_Button) -> bool
-{
-    return input_test_keyboard_btn(&self.input, slot, button)
-}
-
-app_get_keyboard_btn :: proc(self: ^App, slot: int, button: Keyboard_Button) -> Button_State
-{
-    return input_get_keyboard_btn(&self.input, slot, button)
-}
-
-app_test_keyboard_key :: proc(self: ^App, slot: int, key: Keyboard_Key) -> bool
-{
-    return input_test_keyboard_key(&self.input, slot, key)
-}
-
-app_get_keyboard_key :: proc(self: ^App, slot: int, key: Keyboard_Key) -> Button_State
-{
-    return input_get_keyboard_key(&self.input, slot, key)
+    window_swap_buffers(nil)
 }

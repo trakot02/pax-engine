@@ -1,5 +1,9 @@
 package pax
 
+//
+// Variables
+//
+
 PRESS_TABLE := [Button_State]Button_State {
     .IDLE    = .PRESS,
     .PRESS   = .ACTIVE,
@@ -27,6 +31,10 @@ TEST_TABLE := [Button_State]bool {
     .ACTIVE  = true,
     .RELEASE = false,
 }
+
+//
+// Definitions
+//
 
 Button_State :: enum
 {
@@ -152,22 +160,25 @@ Keyboard_State :: struct
     buttons: [Keyboard_Button]Button_State,
 }
 
-Input :: struct
+Input_State :: struct
 {
     mouse:    Mouse_State,
     keyboard: Keyboard_State,
 }
 
+//
+// Functions
+//
+
 mouse_event :: proc(self: ^Mouse_State, event: Mouse_Event)
 {
     if self.slot != event.slot { return }
 
-    press   := PRESS_TABLE[self.buttons[event.button]]
-    release := RELEASE_TABLE[self.buttons[event.button]]
+    button := &self.buttons[event.button]
 
     switch event.press {
-        case true:  self.buttons[event.button] = press
-        case false: self.buttons[event.button] = release
+        case true:  button^ = PRESS_TABLE[button^]
+        case false: button^ = RELEASE_TABLE[button^]
     }
 
     self.wheel = event.wheel
@@ -212,12 +223,11 @@ keyboard_event :: proc(self: ^Keyboard_State, event: Keyboard_Event)
 {
     if self.slot != event.slot { return }
 
-    press   := PRESS_TABLE[self.buttons[event.button]]
-    release := RELEASE_TABLE[self.buttons[event.button]]
+    button := &self.buttons[event.button]
 
     switch event.press {
-        case true:  self.buttons[event.button] = press
-        case false: self.buttons[event.button] = release
+        case true:  button^ = PRESS_TABLE[button^]
+        case false: button^ = RELEASE_TABLE[button^]
     }
 }
 
@@ -248,7 +258,7 @@ keyboard_get_key :: proc(self: ^Keyboard_State, key: Keyboard_Key) -> Button_Sta
     return keyboard_get_btn(self, keyboard_key_to_button(key))
 }
 
-input_event :: proc(self: ^Input, event: Event)
+input_event :: proc(self: ^Input_State, event: Event)
 {
     #partial switch type in event {
         case Mouse_Event:    mouse_event(&self.mouse, type)
@@ -256,13 +266,13 @@ input_event :: proc(self: ^Input, event: Event)
     }
 }
 
-input_reset :: proc(self: ^Input)
+input_reset :: proc(self: ^Input_State)
 {
     mouse_reset(&self.mouse)
     keyboard_reset(&self.keyboard)
 }
 
-input_test_mouse_btn :: proc(self: ^Input, slot: int, button: Mouse_Button) -> bool
+input_test_mouse_btn :: proc(self: ^Input_State, slot: int, button: Mouse_Button) -> bool
 {
     if slot != self.mouse.slot {
         return false
@@ -271,7 +281,7 @@ input_test_mouse_btn :: proc(self: ^Input, slot: int, button: Mouse_Button) -> b
     return mouse_test_btn(&self.mouse, button)
 }
 
-input_get_mouse_btn :: proc(self: ^Input, slot: int, button: Mouse_Button) -> Button_State
+input_get_mouse_btn :: proc(self: ^Input_State, slot: int, button: Mouse_Button) -> Button_State
 {
     if slot != self.mouse.slot {
         return .IDLE
@@ -280,7 +290,7 @@ input_get_mouse_btn :: proc(self: ^Input, slot: int, button: Mouse_Button) -> Bu
     return mouse_get_btn(&self.mouse, button)
 }
 
-input_get_mouse_wheel :: proc(self: ^Input, slot: int) -> [2]f32
+input_get_mouse_wheel :: proc(self: ^Input_State, slot: int) -> [2]f32
 {
     if slot != self.mouse.slot {
         return {0, 0}
@@ -289,7 +299,7 @@ input_get_mouse_wheel :: proc(self: ^Input, slot: int) -> [2]f32
     return self.mouse.wheel
 }
 
-input_get_mouse_position :: proc(self: ^Input, slot: int) -> [2]f32
+input_get_mouse_position :: proc(self: ^Input_State, slot: int) -> [2]f32
 {
     if slot != self.mouse.slot {
         return {0, 0}
@@ -298,7 +308,7 @@ input_get_mouse_position :: proc(self: ^Input, slot: int) -> [2]f32
     return self.mouse.position
 }
 
-input_get_mouse_movement :: proc(self: ^Input, slot: int) -> [2]f32
+input_get_mouse_movement :: proc(self: ^Input_State, slot: int) -> [2]f32
 {
     if slot != self.mouse.slot {
         return {0, 0}
@@ -307,7 +317,7 @@ input_get_mouse_movement :: proc(self: ^Input, slot: int) -> [2]f32
     return self.mouse.movement
 }
 
-input_test_keyboard_btn :: proc(self: ^Input, slot: int, button: Keyboard_Button) -> bool
+input_test_keyboard_btn :: proc(self: ^Input_State, slot: int, button: Keyboard_Button) -> bool
 {
     if slot != self.keyboard.slot {
         return false
@@ -316,7 +326,7 @@ input_test_keyboard_btn :: proc(self: ^Input, slot: int, button: Keyboard_Button
     return keyboard_test_btn(&self.keyboard, button)
 }
 
-input_get_keyboard_btn :: proc(self: ^Input, slot: int, button: Keyboard_Button) -> Button_State
+input_get_keyboard_btn :: proc(self: ^Input_State, slot: int, button: Keyboard_Button) -> Button_State
 {
     if slot != self.keyboard.slot {
         return .IDLE
@@ -325,7 +335,7 @@ input_get_keyboard_btn :: proc(self: ^Input, slot: int, button: Keyboard_Button)
     return keyboard_get_btn(&self.keyboard, button)
 }
 
-input_test_keyboard_key :: proc(self: ^Input, slot: int, key: Keyboard_Key) -> bool
+input_test_keyboard_key :: proc(self: ^Input_State, slot: int, key: Keyboard_Key) -> bool
 {
     if slot != self.keyboard.slot {
         return false
@@ -334,7 +344,7 @@ input_test_keyboard_key :: proc(self: ^Input, slot: int, key: Keyboard_Key) -> b
     return keyboard_test_key(&self.keyboard, key)
 }
 
-input_get_keyboard_key :: proc(self: ^Input, slot: int, key: Keyboard_Key) -> Button_State
+input_get_keyboard_key :: proc(self: ^Input_State, slot: int, key: Keyboard_Key) -> Button_State
 {
     if slot != self.keyboard.slot {
         return .IDLE
