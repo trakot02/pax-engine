@@ -12,7 +12,6 @@ App :: struct
     input:  Input_State,
     stack:  Layer_Stack,
     render: Render_State,
-    shader: Shader,
 
     table: Slot_Table(Layer),
 }
@@ -34,16 +33,10 @@ app_init :: proc(self: ^App, allocator := context.allocator) -> bool
 
     backend_init({320, 180}, "Pax") or_return
 
-    shader_vertex(&builder, #load("../data/vertex.glsl")) or_return
-    shader_fragment(&builder, #load("../data/fragment.glsl")) or_return
-
     self.table  = slot_table_init(Layer, allocator)
     self.stack  = layer_stack_init(allocator)
-
     self.render = render_init()
-    self.shader = shader_init(&builder) or_return
 
-    render_set_shader(&self.render, &self.shader)
     render_set_viewport(&self.render, {0, 0, 320, 180})
 
     return true
@@ -51,7 +44,6 @@ app_init :: proc(self: ^App, allocator := context.allocator) -> bool
 
 app_destroy :: proc(self: ^App)
 {
-    shader_destroy(&self.shader)
     render_destroy(&self.render)
 
     layer_stack_destroy(&self.stack)
@@ -184,6 +176,7 @@ app_event :: proc(self: ^App)
 
     for ; event != nil; event = poll_event() {
         input_event(&self.input, event)
+        render_event(&self.render, event)
 
         it := layer_stack_iter(&self.stack)
 
@@ -213,16 +206,11 @@ app_step :: proc(self: ^App, delta_time: f32)
 
 app_draw :: proc(self: ^App)
 {
-    render_clear_color(&self.render, {})
-    render_begin_batch(&self.render)
-
     it := layer_stack_iter(&self.stack)
 
     for layer in layer_stack_next(&it) {
         layer_draw(layer)
     }
-
-    render_end_batch(&self.render)
 
     window_swap_buffers(nil)
 }

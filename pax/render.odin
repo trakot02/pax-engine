@@ -55,7 +55,6 @@ Render_State :: struct
 
 render_init :: proc() -> Render_State
 {
-    value  := Render_State {}
     array  := u32 {}
     vertex := u32 {}
 
@@ -78,10 +77,11 @@ render_init :: proc() -> Render_State
 
     gl.BindVertexArray(0)
 
-    value.array  = int(array)
-    value.vertex = int(vertex)
-
-    return value
+    return Render_State {
+        array  = int(array),
+        vertex = int(vertex),
+        ortho  = mathl.matrix_ortho3d_f32(-1, 1, 1, -1, -1, 1)
+    }
 }
 
 render_destroy :: proc(self: ^Render_State)
@@ -102,11 +102,6 @@ render_set_viewport :: proc(self: ^Render_State, viewport: [4]f32)
 {
     gl.Viewport(i32(viewport.x), i32(viewport.y),
         i32(viewport.z), i32(viewport.w))
-
-    self.ortho = mathl.matrix_ortho3d_f32(
-        viewport.x, viewport.x + viewport.z,
-        viewport.y, viewport.y + viewport.w,
-        -1.0, 1.0)
 }
 
 render_set_m4f32 :: proc(self: ^Render_State, name: string, mat: matrix[4, 4]f32) -> bool
@@ -156,4 +151,12 @@ render_draw_triangle :: proc(self: ^Render_State, triangle: Render_Triangle)
     }
 
     self.batch.count += VERT_OF_TRIANGLE
+}
+
+render_event :: proc(self: ^Render_State, event: Event)
+{
+    #partial switch type in event {
+        case Window_Resize_Event:
+            render_set_viewport(self, {0, 0, f32(type.size.x), f32(type.size.y)})
+    }
 }
