@@ -10,7 +10,7 @@ out vec4 vert_color;
 
 void main()
 {
-    mat4 trans = unif_proj * unif_view
+    mat4 trans = unif_proj * unif_view;
 
     gl_Position = trans * vec4(data_position, 0, 1);
     vert_color  = data_color;

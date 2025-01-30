@@ -52,7 +52,7 @@ demo_layer_draw :: proc(self: ^Demo_Layer)
 
     pax.render_clear_color(&self.demo.render, {0, 0, 0, 1})
     pax.render_set_m4f32(&self.demo.render, "unif_proj", self.demo.render.ortho)
-    pax.render_set_m4f32(&self.demo.render, "unif_view", self.demo.view)
+    // pax.render_set_m4f32(&self.demo.render, "unif_view", self.demo.view)
 
     pax.render_begin_batch(&self.demo.render)
 

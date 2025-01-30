@@ -18,7 +18,7 @@ App :: struct
 
 App_Config :: struct
 {
-    first_layer:    Handle(Layer),
+    first_layer:    int,
     max_frame_rate: int,
     max_frame_skip: int,
 }
@@ -58,7 +58,7 @@ app_clear :: proc(self: ^App)
     layer_stack_clear(&self.stack)
 }
 
-app_create_layer :: proc(self: ^App, value: Layer) -> Handle(Layer)
+app_create_layer :: proc(self: ^App, value: Layer) -> int
 {
     return slot_table_insert(&self.table, value)
 }
@@ -143,7 +143,7 @@ app_loop :: proc(self: ^App, config: App_Config) -> bool
     total_time: f64 = 0
 
     app_start(self)
-    app_stack_set(self, config.first_layer.slot)
+    app_stack_set(self, config.first_layer)
 
     for skips := 0; layer_stack_size(&self.stack) > 0; skips = 0 {
         frame_time  = time.duration_seconds(time.tick_lap_time(&tick))
