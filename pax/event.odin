@@ -8,7 +8,7 @@ App_Close_Event :: struct {}
 
 Mouse_Event :: struct
 {
-    slot:     int,
+    ident:    int,
     button:   Mouse_Button,
     press:    b32,
     wheel:    [2]f32,
@@ -18,15 +18,15 @@ Mouse_Event :: struct
 
 Keyboard_Event :: struct
 {
-    slot:   int,
+    ident:  int,
     button: Keyboard_Button,
     press:  b32,
 }
 
 Window_Resize_Event :: struct
 {
-    slot: int,
-    size: [2]int,
+    ident:     int,
+    dimension: [2]int,
 }
 
 Event :: union

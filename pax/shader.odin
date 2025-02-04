@@ -12,7 +12,7 @@ import gl "vendor:OpenGL"
 
 Shader :: struct
 {
-    slot: int,
+    ident: int,
 }
 
 Shader_Builder :: struct
@@ -25,38 +25,6 @@ Shader_Builder :: struct
 //
 // Functions
 //
-
-get_shader_compile_error_for :: proc(self: ^Shader_Builder, slot: int) -> bool
-{
-    buffer := [1024]byte {}
-    status := i32(0)
-
-    gl.GetShaderiv(u32(slot), gl.COMPILE_STATUS, &status)
-
-    if status == 0 {
-        gl.GetShaderInfoLog(u32(slot), len(buffer), nil, &buffer[0])
-
-        log.errorf("Shader_Builder: ERROR = %v", cstring(&buffer[0]))
-    }
-
-    return status == 0
-}
-
-get_shader_link_error_for :: proc(self: ^Shader_Builder, slot: int) -> bool
-{
-    buffer := [1024]byte {}
-    status := i32(0)
-
-    gl.GetProgramiv(u32(slot), gl.LINK_STATUS, &status)
-
-    if status == 0 {
-        gl.GetProgramInfoLog(u32(slot), len(buffer), nil, &buffer[0])
-
-        log.errorf("Shader_Builder: ERROR = %v", cstring(&buffer[0]))
-    }
-
-    return status == 0
-}
 
 shader_vertex :: proc(self: ^Shader_Builder, vertex: string) -> bool
 {
@@ -71,13 +39,13 @@ shader_vertex :: proc(self: ^Shader_Builder, vertex: string) -> bool
 
     defer mem.free_all(context.temp_allocator)
 
-    slot := gl.CreateShader(gl.VERTEX_SHADER)
+    ident := gl.CreateShader(gl.VERTEX_SHADER)
 
-    gl.ShaderSource(slot, 1, &clone, nil)
-    gl.CompileShader(slot)
+    gl.ShaderSource(ident, 1, &clone, nil)
+    gl.CompileShader(ident)
 
-    if get_shader_compile_error_for(self, int(slot)) == false {
-        self.vertex = int(slot)
+    if shader_get_compile_error_for(self, int(ident)) == false {
+        self.vertex = int(ident)
     }
 
     return true
@@ -96,13 +64,13 @@ shader_geometry :: proc(self: ^Shader_Builder, geometry: string) -> bool
 
     defer mem.free_all(context.temp_allocator)
 
-    slot := gl.CreateShader(gl.GEOMETRY_SHADER)
+    ident := gl.CreateShader(gl.GEOMETRY_SHADER)
 
-    gl.ShaderSource(slot, 1, &clone, nil)
-    gl.CompileShader(slot)
+    gl.ShaderSource(ident, 1, &clone, nil)
+    gl.CompileShader(ident)
 
-    if get_shader_compile_error_for(self, int(slot)) == false {
-        self.geometry = int(slot)
+    if shader_get_compile_error_for(self, int(ident)) == false {
+        self.geometry = int(ident)
     }
 
     return true
@@ -121,13 +89,13 @@ shader_fragment :: proc(self: ^Shader_Builder, fragment: string) -> bool
 
     defer mem.free_all(context.temp_allocator)
 
-    slot := gl.CreateShader(gl.FRAGMENT_SHADER)
+    ident := gl.CreateShader(gl.FRAGMENT_SHADER)
 
-    gl.ShaderSource(slot, 1, &clone, nil)
-    gl.CompileShader(slot)
+    gl.ShaderSource(ident, 1, &clone, nil)
+    gl.CompileShader(ident)
 
-    if get_shader_compile_error_for(self, int(slot)) == false {
-        self.fragment = int(slot)
+    if shader_get_compile_error_for(self, int(ident)) == false {
+        self.fragment = int(ident)
     }
 
     return true
@@ -135,22 +103,22 @@ shader_fragment :: proc(self: ^Shader_Builder, fragment: string) -> bool
 
 shader_init :: proc(self: ^Shader_Builder) -> (Shader, bool)
 {
-    slot := gl.CreateProgram()
+    ident := gl.CreateProgram()
 
-    if self.vertex   != 0 { gl.AttachShader(slot, u32(self.vertex))   }
-    if self.geometry != 0 { gl.AttachShader(slot, u32(self.geometry)) }
-    if self.fragment != 0 { gl.AttachShader(slot, u32(self.fragment)) }
+    if self.vertex   != 0 { gl.AttachShader(ident, u32(self.vertex))   }
+    if self.geometry != 0 { gl.AttachShader(ident, u32(self.geometry)) }
+    if self.fragment != 0 { gl.AttachShader(ident, u32(self.fragment)) }
 
-    gl.LinkProgram(slot)
+    gl.LinkProgram(ident)
 
-    if get_shader_link_error_for(self, int(slot)) == false {
+    if shader_get_link_error_for(self, int(ident)) == false {
         if self.vertex   != 0 { gl.DeleteShader(u32(self.vertex))   }
         if self.geometry != 0 { gl.DeleteShader(u32(self.geometry)) }
         if self.fragment != 0 { gl.DeleteShader(u32(self.fragment)) }
 
         self^ = {}
 
-        return Shader { slot = int(slot) }, true
+        return Shader { ident = int(ident) }, true
     }
 
     return {}, false
@@ -158,14 +126,14 @@ shader_init :: proc(self: ^Shader_Builder) -> (Shader, bool)
 
 shader_destroy :: proc(self: ^Shader)
 {
-    gl.DeleteProgram(u32(self.slot))
+    gl.DeleteProgram(u32(self.ident))
 
-    self.slot = 0
+    self.ident = 0
 }
 
 shader_bind :: proc(self: ^Shader)
 {
-    gl.UseProgram(u32(self.slot))
+    gl.UseProgram(u32(self.ident))
 }
 
 shader_unbind :: proc(self: ^Shader)
@@ -186,7 +154,7 @@ shader_set_i32 :: proc(self: ^Shader, name: string, val: i32) -> bool
 
     defer mem.free_all(context.temp_allocator)
 
-    loc := gl.GetUniformLocation(u32(self.slot), clone)
+    loc := gl.GetUniformLocation(u32(self.ident), clone)
 
     if loc != -1 {
         gl.Uniform1i(loc, val)
@@ -208,7 +176,7 @@ shader_set_f32 :: proc(self: ^Shader, name: string, val: f32) -> bool
 
     defer mem.free_all(context.temp_allocator)
 
-    loc := gl.GetUniformLocation(u32(self.slot), clone)
+    loc := gl.GetUniformLocation(u32(self.ident), clone)
 
     if loc != -1 {
         gl.Uniform1f(loc, val)
@@ -217,7 +185,7 @@ shader_set_f32 :: proc(self: ^Shader, name: string, val: f32) -> bool
     return loc != -1
 }
 
-shader_set_v2f32 :: proc(self: ^Shader, name: string, vec: [2]f32) -> bool
+shader_set_vec2_f32 :: proc(self: ^Shader, name: string, vec: [2]f32) -> bool
 {
     clone, error := strings.clone_to_cstring(name,
         context.temp_allocator)
@@ -230,7 +198,7 @@ shader_set_v2f32 :: proc(self: ^Shader, name: string, vec: [2]f32) -> bool
 
     defer mem.free_all(context.temp_allocator)
 
-    loc := gl.GetUniformLocation(u32(self.slot), clone)
+    loc := gl.GetUniformLocation(u32(self.ident), clone)
 
     if loc != -1 {
         gl.Uniform2f(loc, vec.x, vec.y)
@@ -239,7 +207,7 @@ shader_set_v2f32 :: proc(self: ^Shader, name: string, vec: [2]f32) -> bool
     return loc != -1
 }
 
-shader_set_v3f32 :: proc(self: ^Shader, name: string, vec: [3]f32) -> bool
+shader_set_vec3_f32 :: proc(self: ^Shader, name: string, vec: [3]f32) -> bool
 {
     clone, error := strings.clone_to_cstring(name,
         context.temp_allocator)
@@ -252,7 +220,7 @@ shader_set_v3f32 :: proc(self: ^Shader, name: string, vec: [3]f32) -> bool
 
     defer mem.free_all(context.temp_allocator)
 
-    loc := gl.GetUniformLocation(u32(self.slot), clone)
+    loc := gl.GetUniformLocation(u32(self.ident), clone)
 
     if loc != -1 {
         gl.Uniform3f(loc, vec.x, vec.y, vec.z)
@@ -261,7 +229,7 @@ shader_set_v3f32 :: proc(self: ^Shader, name: string, vec: [3]f32) -> bool
     return loc != -1
 }
 
-shader_set_v4f32 :: proc(self: ^Shader, name: string, vec: [4]f32) -> bool
+shader_set_vec4_f32 :: proc(self: ^Shader, name: string, vec: [4]f32) -> bool
 {
     clone, error := strings.clone_to_cstring(name,
         context.temp_allocator)
@@ -274,7 +242,7 @@ shader_set_v4f32 :: proc(self: ^Shader, name: string, vec: [4]f32) -> bool
 
     defer mem.free_all(context.temp_allocator)
 
-    loc := gl.GetUniformLocation(u32(self.slot), clone)
+    loc := gl.GetUniformLocation(u32(self.ident), clone)
 
     if loc != -1 {
         gl.Uniform4f(loc, vec.x, vec.y, vec.z, vec.w)
@@ -283,7 +251,7 @@ shader_set_v4f32 :: proc(self: ^Shader, name: string, vec: [4]f32) -> bool
     return loc != -1
 }
 
-shader_set_m4f32 :: proc(self: ^Shader, name: string, mat: matrix[4, 4]f32) -> bool
+shader_set_mat4_f32 :: proc(self: ^Shader, name: string, mat: matrix[4, 4]f32) -> bool
 {
     clone, error := strings.clone_to_cstring(name,
         context.temp_allocator)
@@ -296,7 +264,7 @@ shader_set_m4f32 :: proc(self: ^Shader, name: string, mat: matrix[4, 4]f32) -> b
 
     defer mem.free_all(context.temp_allocator)
 
-    loc := gl.GetUniformLocation(u32(self.slot), clone)
+    loc := gl.GetUniformLocation(u32(self.ident), clone)
     arg := mat
 
     if loc != -1 {
@@ -304,4 +272,36 @@ shader_set_m4f32 :: proc(self: ^Shader, name: string, mat: matrix[4, 4]f32) -> b
     }
 
     return loc != -1
+}
+
+shader_get_compile_error_for :: proc(self: ^Shader_Builder, ident: int) -> bool
+{
+    buffer := [1024]byte {}
+    status := i32(0)
+
+    gl.GetShaderiv(u32(ident), gl.COMPILE_STATUS, &status)
+
+    if status == 0 {
+        gl.GetShaderInfoLog(u32(ident), len(buffer), nil, &buffer[0])
+
+        log.errorf("Shader_Builder: ERROR = %v", cstring(&buffer[0]))
+    }
+
+    return status == 0
+}
+
+shader_get_link_error_for :: proc(self: ^Shader_Builder, ident: int) -> bool
+{
+    buffer := [1024]byte {}
+    status := i32(0)
+
+    gl.GetProgramiv(u32(ident), gl.LINK_STATUS, &status)
+
+    if status == 0 {
+        gl.GetProgramInfoLog(u32(ident), len(buffer), nil, &buffer[0])
+
+        log.errorf("Shader_Builder: ERROR = %v", cstring(&buffer[0]))
+    }
+
+    return status == 0
 }

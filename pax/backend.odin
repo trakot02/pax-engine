@@ -13,6 +13,7 @@ BACKEND :: Backend.SDL2
 Backend :: enum
 {
     SDL2,
+    SDL3,
 }
 
 when BACKEND == .SDL2 {
@@ -25,11 +26,16 @@ when BACKEND == .SDL2 {
 
     Window :: sdl2_Window
 
-    window_main         :: sdl2_window_main
-    window_init         :: sdl2_window_init
-    window_destroy      :: sdl2_window_destroy
-    window_swap_buffers :: sdl2_window_swap_buffers
-    window_size         :: sdl2_window_size
-    window_show         :: sdl2_window_show
-    window_hide         :: sdl2_window_hide
+    window_main          :: sdl2_window_main
+    window_init          :: sdl2_window_init
+    window_destroy       :: sdl2_window_destroy
+    window_swap_buffers  :: sdl2_window_swap_buffers
+    window_show          :: sdl2_window_show
+    window_hide          :: sdl2_window_hide
+    window_get_position  :: sdl2_window_get_position
+    window_get_dimension :: sdl2_window_get_dimension
+    window_set_position  :: sdl2_window_set_position
+    window_set_dimension :: sdl2_window_set_dimension
 }
+
+when BACKEND == .SDL3 {}

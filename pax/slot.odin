@@ -6,19 +6,32 @@ import "core:log"
 // Definitions
 //
 
-Slot_Table :: struct ($T: typeid)
+Slot_Table :: struct ($Val: typeid)
 {
-    first: int,
-    count: int,
-    last:  int,
+    // Head of the free identifiers' implicit list.
+    list_head: int,
+
+    // Size of the free identifiers' implicit list. If it's zero, the list is empty.
+    list_size: int,
+
+    // Logical size of the "items" array also used to track its next usable index.
+    items_size: int,
+
+    // Sparse array which maps a identifier to an index. If "inner[outer[x]] == x" the
+    // identifier x has a value inside the table.
     outer: [dynamic]int,
+
+    // Dense array which maps an index to a identifier. If "inner[outer[x]] == x" the
+    // identifier x has a value inside the table.
     inner: [dynamic]int,
-    items: [dynamic]T,
+
+    // Dense array of values.
+    items: [dynamic]Val,
 }
 
-Slot_Table_Iter :: struct ($T: typeid)
+Slot_Table_Iter :: struct ($Val: typeid)
 {
-    table: ^Slot_Table(T),
+    table: ^Slot_Table(Val),
     index: int,
 }
 
@@ -26,111 +39,114 @@ Slot_Table_Iter :: struct ($T: typeid)
 // Functions
 //
 
-slot_table_init :: proc($T: typeid, allocator := context.allocator) -> Slot_Table(T)
+slot_table_init :: proc($Val: typeid, allocator := context.allocator) -> Slot_Table(Val)
 {
-    return Slot_Table(T) {
+    return Slot_Table(Val) {
         outer = make([dynamic]int, allocator),
         inner = make([dynamic]int, allocator),
-        items = make([dynamic]T, allocator),
+        items = make([dynamic]Val, allocator),
     }
 }
 
-slot_table_destroy :: proc(self: ^Slot_Table($T))
+slot_table_destroy :: proc(self: ^Slot_Table($Val))
 {
     delete(self.items)
     delete(self.inner)
     delete(self.outer)
 
-    self.first = 0
-    self.count = 0
-    self.last  = 0
-    self.outer = {}
-    self.inner = {}
-    self.items = {}
+    self.list_head  = {}
+    self.list_size  = {}
+    self.items_size = {}
+    self.outer      = {}
+    self.inner      = {}
+    self.items      = {}
 }
 
-slot_table_len :: proc(self: ^Slot_Table($T)) -> int
+slot_table_len :: proc(self: ^Slot_Table($Val)) -> int
 {
-    return self.last
+    return self.items_size
 }
 
-slot_table_clear :: proc(self: ^Slot_Table($T))
+slot_table_clear :: proc(self: ^Slot_Table($Val))
 {
     clear(&self.outer)
     clear(&self.inner)
     clear(&self.items)
 
-    self.first = 0
-    self.count = 0
-    self.last  = 0
+    self.list_head  = {}
+    self.list_size  = {}
+    self.items_size = {}
 }
 
-slot_table_insert :: proc(self: ^Slot_Table($T), value: T) -> int
+slot_table_insert :: proc(self: ^Slot_Table($Val), value: Val) -> int
 {
-    slot := len(self.items) + 1
+    ident := self.items_size + 1
 
-    switch self.count <= 0 {
+    switch self.list_size <= 0 {
+        // There are no identifiers to reuse.
         case true: {
             _, error := append(&self.items, value)
 
-            if error == nil { _, error = append(&self.outer, slot) }
-            if error == nil { _, error = append(&self.inner, slot) }
+            if error == nil { _, error = append(&self.outer, ident) }
+            if error == nil { _, error = append(&self.inner, ident) }
 
             if error != nil {
-                resize(&self.outer, slot - 1)
-                resize(&self.inner, slot - 1)
-                resize(&self.items, slot - 1)
+                resize(&self.outer, ident - 1)
+                resize(&self.inner, ident - 1)
+                resize(&self.items, ident - 1)
 
                 log.errorf("Slot_Table: Unable to insert value")
 
-                return {}
+                return 0
             }
         }
 
+        // The list's head contains an identifier to reuse.
         case false: {
-            slot := self.first
-            next := self.outer[slot - 1]
+            ident := self.list_head
 
-            self.outer[slot - 1] = self.last + 1
+            self.list_head  = self.outer[ident - 1]
+            self.list_size -= 1
 
-            self.inner[self.last] = slot
-            self.items[self.last] = value
+            self.outer[ident - 1] = self.items_size + 1
 
-            self.first  = next + 1
-            self.count -= 1
+            self.inner[self.items_size] = ident
+            self.items[self.items_size] = value
         }
     }
 
-    self.last += 1
+    self.items_size += 1
 
-    return slot
+    return ident
 }
 
-slot_table_remove :: proc(self: ^Slot_Table($T), slot: int) -> (T, bool)
+slot_table_remove :: proc(self: ^Slot_Table($Val), ident: int) -> (Val, bool)
 {
-    if slot <= 0 || slot > len(self.outer) {
-        return {}, false
+    index := int {}
+    other := int {}
+
+    if self.items_size <= 0 { return {}, false }
+
+    if 0 < ident && ident <= len(self.outer) {
+        index = self.outer[ident - 1]
+
+        if 0 < index && index <= len(self.inner) {
+            other = self.inner[index - 1]
+        }
     }
 
-    index := self.outer[slot - 1]
-
-    if index <= 0 || index > len(self.inner) {
-        return {}, false
-    }
-
-    other := self.inner[index - 1]
-
-    if other == slot && self.last > 0 {
+    if ident == other && other != 0 {
         value := self.items[index - 1]
 
-        self.items[index - 1] = self.items[self.last - 1]
-        self.inner[index - 1] = self.inner[self.last - 1]
+        self.items_size -= 1
 
-        self.outer[slot - 1] = self.first
+        self.items[index - 1] = self.items[self.items_size]
+        self.inner[index - 1] = self.inner[self.items_size]
 
-        self.first  = slot
-        self.count += 1
-        self.last  -= 1
+        self.outer[ident - 1] = self.list_head
+
+        self.list_head  = ident
+        self.list_size += 1
 
         return value, true
     }
@@ -138,48 +154,49 @@ slot_table_remove :: proc(self: ^Slot_Table($T), slot: int) -> (T, bool)
     return {}, false
 }
 
-slot_table_find :: proc(self: ^Slot_Table($T), slot: int) -> Handle(T)
+slot_table_find :: proc(self: ^Slot_Table($Val), ident: int) -> Handle(Val)
 {
-    handle := Handle(T) {}
+    handle := Handle(Val) {}
+    index  := int {}
+    other  := int {}
 
-    if slot <= 0 || slot > len(self.outer) {
-        return handle
+    if self.items_size <= 0 { return handle }
+
+    if 0 < ident && ident <= len(self.outer) {
+        index = self.outer[ident - 1]
+
+        if 0 < index && index <= len(self.inner) {
+            other = self.inner[index - 1]
+        }
     }
 
-    index := self.outer[slot - 1]
-
-    if index <= 0 || index > len(self.inner) {
-        return handle
-    }
-
-    other := self.inner[index - 1]
-
-    if other == slot {
-        handle.slot  = slot
+    if other == ident && other != 0 {
+        handle.ident = ident
         handle.value = &self.items[index - 1]
     }
 
     return handle
 }
 
-slot_table_iter :: proc(self: ^Slot_Table($T)) -> Slot_Table_Iter(T)
+slot_table_iter :: proc(self: ^Slot_Table($Val)) -> Slot_Table_Iter(Val)
 {
-    return Slot_Table_Iter(T) {
+    return Slot_Table_Iter(Val) {
         table = self,
-        index = 0,
     }
 }
 
-slot_table_next :: proc(self: ^Slot_Table_Iter($T)) -> (^T, int, bool)
+slot_table_next :: proc(self: ^Slot_Table_Iter($Val)) -> (^Val, int, bool)
 {
-    if self.index < 0 || self.index >= self.table.last {
+    list_size := self.table.items_size
+
+    if self.index < 0 || self.index >= list_size {
         return nil, 0, false
     }
 
     value := &self.table.items[self.index]
-    slot  := self.index + 1
+    ident := self.index + 1
 
-    self.index = slot
+    self.index = ident
 
-    return value, slot, true
+    return value, ident, true
 }

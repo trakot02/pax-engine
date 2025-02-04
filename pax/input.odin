@@ -51,7 +51,7 @@ Mouse_Button :: enum i32
 
 Mouse_State :: struct
 {
-    slot: int,
+    ident: int,
 
     buttons: [Mouse_Button]Button_State,
 
@@ -155,7 +155,7 @@ Keyboard_Key :: enum i32
 
 Keyboard_State :: struct
 {
-    slot: int,
+    ident: int,
 
     buttons: [Keyboard_Button]Button_State,
 }
@@ -172,7 +172,7 @@ Input_State :: struct
 
 mouse_event :: proc(self: ^Mouse_State, event: Mouse_Event)
 {
-    if self.slot != event.slot { return }
+    if self.ident != event.ident { return }
 
     button := &self.buttons[event.button]
 
@@ -183,8 +183,10 @@ mouse_event :: proc(self: ^Mouse_State, event: Mouse_Event)
 
     self.wheel = event.wheel
 
-    self.position = event.position
-    self.movement = event.movement
+    if self.movement != {} {
+        self.position = event.position
+        self.movement = event.movement
+    }
 }
 
 mouse_reset :: proc(self: ^Mouse_State)
@@ -221,7 +223,7 @@ mouse_get_movement :: proc(self: ^Mouse_State) -> [2]f32
 
 keyboard_event :: proc(self: ^Keyboard_State, event: Keyboard_Event)
 {
-    if self.slot != event.slot { return }
+    if self.ident != event.ident { return }
 
     button := &self.buttons[event.button]
 
@@ -272,81 +274,81 @@ input_reset :: proc(self: ^Input_State)
     keyboard_reset(&self.keyboard)
 }
 
-input_test_mouse_btn :: proc(self: ^Input_State, slot: int, button: Mouse_Button) -> bool
+input_test_mouse_btn :: proc(self: ^Input_State, ident: int, button: Mouse_Button) -> bool
 {
-    if slot != self.mouse.slot {
+    if ident != self.mouse.ident {
         return false
     }
 
     return mouse_test_btn(&self.mouse, button)
 }
 
-input_get_mouse_btn :: proc(self: ^Input_State, slot: int, button: Mouse_Button) -> Button_State
+input_get_mouse_btn :: proc(self: ^Input_State, ident: int, button: Mouse_Button) -> Button_State
 {
-    if slot != self.mouse.slot {
+    if ident != self.mouse.ident {
         return .IDLE
     }
 
     return mouse_get_btn(&self.mouse, button)
 }
 
-input_get_mouse_wheel :: proc(self: ^Input_State, slot: int) -> [2]f32
+input_get_mouse_wheel :: proc(self: ^Input_State, ident: int) -> [2]f32
 {
-    if slot != self.mouse.slot {
+    if ident != self.mouse.ident {
         return {0, 0}
     }
 
     return self.mouse.wheel
 }
 
-input_get_mouse_position :: proc(self: ^Input_State, slot: int) -> [2]f32
+input_get_mouse_position :: proc(self: ^Input_State, ident: int) -> [2]f32
 {
-    if slot != self.mouse.slot {
+    if ident != self.mouse.ident {
         return {0, 0}
     }
 
     return self.mouse.position
 }
 
-input_get_mouse_movement :: proc(self: ^Input_State, slot: int) -> [2]f32
+input_get_mouse_movement :: proc(self: ^Input_State, ident: int) -> [2]f32
 {
-    if slot != self.mouse.slot {
+    if ident != self.mouse.ident {
         return {0, 0}
     }
 
     return self.mouse.movement
 }
 
-input_test_keyboard_btn :: proc(self: ^Input_State, slot: int, button: Keyboard_Button) -> bool
+input_test_keyboard_btn :: proc(self: ^Input_State, ident: int, button: Keyboard_Button) -> bool
 {
-    if slot != self.keyboard.slot {
+    if ident != self.keyboard.ident {
         return false
     }
 
     return keyboard_test_btn(&self.keyboard, button)
 }
 
-input_get_keyboard_btn :: proc(self: ^Input_State, slot: int, button: Keyboard_Button) -> Button_State
+input_get_keyboard_btn :: proc(self: ^Input_State, ident: int, button: Keyboard_Button) -> Button_State
 {
-    if slot != self.keyboard.slot {
+    if ident != self.keyboard.ident {
         return .IDLE
     }
 
     return keyboard_get_btn(&self.keyboard, button)
 }
 
-input_test_keyboard_key :: proc(self: ^Input_State, slot: int, key: Keyboard_Key) -> bool
+input_test_keyboard_key :: proc(self: ^Input_State, ident: int, key: Keyboard_Key) -> bool
 {
-    if slot != self.keyboard.slot {
+    if ident != self.keyboard.ident {
         return false
     }
 
     return keyboard_test_key(&self.keyboard, key)
 }
 
-input_get_keyboard_key :: proc(self: ^Input_State, slot: int, key: Keyboard_Key) -> Button_State
+input_get_keyboard_key :: proc(self: ^Input_State, ident: int, key: Keyboard_Key) -> Button_State
 {
-    if slot != self.keyboard.slot {
+    if ident != self.keyboard.ident {
         return .IDLE
     }
 

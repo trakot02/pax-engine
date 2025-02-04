@@ -171,11 +171,11 @@ sdl2_Window :: struct
 // Functions
 //
 
-sdl2_backend_init :: proc(size: [2]int, title: string) -> bool
+sdl2_backend_init :: proc(dimension: [2]int, title: string) -> bool
 {
     sdl.Init(sdl.INIT_VIDEO)
 
-    window, state := sdl2_window_init(size, title)
+    window, state := sdl2_window_init(dimension, title)
 
     if state == false {
         sdl.Quit()
@@ -233,7 +233,7 @@ sdl2_poll_event :: proc() -> Event
 sdl2_mouse_motion_to_event :: proc(motion: sdl.MouseMotionEvent) -> Mouse_Event
 {
     return Mouse_Event {
-        slot = int(motion.which),
+        ident = int(motion.which),
 
         position = {f32(motion.x),    f32(motion.y)},
         movement = {f32(motion.xrel), f32(motion.yrel)},
@@ -243,7 +243,7 @@ sdl2_mouse_motion_to_event :: proc(motion: sdl.MouseMotionEvent) -> Mouse_Event
 sdl2_mouse_wheel_to_event :: proc(wheel: sdl.MouseWheelEvent) -> Mouse_Event
 {
     return Mouse_Event {
-        slot = int(wheel.which),
+        ident = int(wheel.which),
 
         wheel = {f32(wheel.x), f32(wheel.y)},
     }
@@ -252,7 +252,7 @@ sdl2_mouse_wheel_to_event :: proc(wheel: sdl.MouseWheelEvent) -> Mouse_Event
 sdl2_mouse_button_to_event :: proc(button: sdl.MouseButtonEvent) -> Mouse_Event
 {
     return Mouse_Event {
-        slot = int(button.which),
+        ident = int(button.which),
 
         button = SDL2_MOUSE_BUTTON[button.button],
         press  = SDL2_BUTTON_PRESS[button.state],
@@ -262,7 +262,7 @@ sdl2_mouse_button_to_event :: proc(button: sdl.MouseButtonEvent) -> Mouse_Event
 sdl2_keyboard_button_to_event :: proc(button: sdl.KeyboardEvent) -> Keyboard_Event
 {
     return Keyboard_Event {
-        slot = 0,
+        ident = 0,
 
         button = SDL2_KEYBOARD_BUTTON[button.keysym.scancode],
         press  = SDL2_BUTTON_PRESS[button.state],
@@ -272,9 +272,9 @@ sdl2_keyboard_button_to_event :: proc(button: sdl.KeyboardEvent) -> Keyboard_Eve
 sdl2_window_resize_to_event :: proc(window: sdl.WindowEvent) -> Window_Resize_Event
 {
     return Window_Resize_Event {
-        slot = int(window.windowID),
+        ident = int(window.windowID),
 
-        size = {int(window.data1), int(window.data2)},
+        dimension = {int(window.data1), int(window.data2)},
     }
 }
 
@@ -283,7 +283,7 @@ sdl2_window_main :: proc() -> sdl2_Window
     return sdl2_main_window
 }
 
-sdl2_window_init :: proc(size: [2]int, title: string) -> (sdl2_Window, bool)
+sdl2_window_init :: proc(dimension: [2]int, title: string) -> (sdl2_Window, bool)
 {
     window := sdl2_Window {}
 
@@ -299,8 +299,8 @@ sdl2_window_init :: proc(size: [2]int, title: string) -> (sdl2_Window, bool)
     defer mem.free_all(context.temp_allocator)
 
     place  := i32(sdl.WINDOWPOS_CENTERED)
-    width  := i32(size.x)
-    height := i32(size.y)
+    width  := i32(dimension.x)
+    height := i32(dimension.y)
     flags  := sdl.WindowFlags {.OPENGL, .HIDDEN, .RESIZABLE}
 
     window.value = sdl.CreateWindow(clone, place, place, width, height, flags)
@@ -311,11 +311,13 @@ sdl2_window_init :: proc(size: [2]int, title: string) -> (sdl2_Window, bool)
         sdl.GL_SetAttribute(.CONTEXT_PROFILE_MASK, i32(sdl.GLprofile.CORE))
         sdl.GL_SetAttribute(.DOUBLEBUFFER, 1)
 
+        sdl.GL_SetAttribute(.MULTISAMPLEBUFFERS, 1)
+        sdl.GL_SetAttribute(.MULTISAMPLESAMPLES, 4)
+
         window.glctx = sdl.GL_CreateContext(window.value)
 
         if sdl.GL_MakeCurrent(window.value, window.glctx) == 0 {
             gl.load_up_to(3, 3, sdl.gl_set_proc_address)
-            gl.Viewport(0, 0, width, height)
 
             return window, true
         }
@@ -342,19 +344,6 @@ sdl2_window_swap_buffers :: proc(self: ^sdl2_Window = nil)
     }
 }
 
-sdl2_window_size :: proc(self: ^sdl2_Window = nil) -> [2]int
-{
-    width  := i32(0)
-    height := i32(0)
-
-    switch self != nil {
-        case true:  sdl.GetWindowSize(self.value, &width, &height)
-        case false: sdl.GetWindowSize(sdl2_main_window.value, &width, &height)
-    }
-
-    return {int(width), int(height)}
-}
-
 sdl2_window_show :: proc(self: ^sdl2_Window = nil)
 {
     switch self != nil {
@@ -368,5 +357,53 @@ sdl2_window_hide :: proc(self: ^sdl2_Window = nil)
     switch self != nil {
         case true:  sdl.HideWindow(self.value)
         case false: sdl.HideWindow(sdl2_main_window.value)
+    }
+}
+
+sdl2_window_get_position :: proc(self: ^sdl2_Window = nil) -> [2]int
+{
+    left := i32(0)
+    top  := i32(0)
+
+    switch self != nil {
+        case true:  sdl.GetWindowPosition(self.value, &left, &top)
+        case false: sdl.GetWindowPosition(sdl2_main_window.value, &left, &top)
+    }
+
+    return {int(left), int(top)}
+}
+
+sdl2_window_get_dimension :: proc(self: ^sdl2_Window = nil) -> [2]int
+{
+    width  := i32(0)
+    height := i32(0)
+
+    switch self != nil {
+        case true:  sdl.GetWindowSize(self.value, &width, &height)
+        case false: sdl.GetWindowSize(sdl2_main_window.value, &width, &height)
+    }
+
+    return {int(width), int(height)}
+}
+
+sdl2_window_set_position :: proc(self: ^sdl2_Window, position: [2]int)
+{
+    top  := i32(position.x)
+    left := i32(position.y)
+
+    switch self != nil {
+        case true:  sdl.SetWindowPosition(self.value, top, left)
+        case false: sdl.SetWindowPosition(sdl2_main_window.value, top, left)
+    }
+}
+
+sdl2_window_set_dimension :: proc(self: ^sdl2_Window, dimension: [2]int)
+{
+    width  := i32(dimension.x)
+    height := i32(dimension.y)
+
+    switch self != nil {
+        case true:  sdl.SetWindowSize(self.value, width, height)
+        case false: sdl.SetWindowSize(sdl2_main_window.value, width, height)
     }
 }

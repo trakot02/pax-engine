@@ -6,6 +6,6 @@ package pax
 
 Handle :: struct($T: typeid)
 {
-    slot:  int,
+    ident: int,
     value: ^T,
 }

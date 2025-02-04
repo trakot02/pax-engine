@@ -21,7 +21,7 @@ LAYER := Layer {
 
     proc_frame = proc(self: rawptr, frame_time: f32) {},
     proc_step  = proc(self: rawptr, delta_time: f32) {},
-    proc_draw  = proc(self: rawptr) {},
+    proc_paint = proc(self: rawptr) {},
 }
 
 //
@@ -39,11 +39,12 @@ Layer :: struct
     proc_event: proc(self: rawptr, event: Event) -> bool,
     proc_frame: proc(self: rawptr, frame_time: f32),
     proc_step:  proc(self: rawptr, delta_time: f32),
-    proc_draw:  proc(self: rawptr),
+    proc_paint: proc(self: rawptr),
 }
 
 Layer_Stack :: struct
 {
+    // Dense array of layers.
     items: [dynamic]Layer,
 }
 
@@ -92,9 +93,9 @@ layer_step :: proc(self: ^Layer, delta_time: f32)
     self.proc_step(self.self, delta_time)
 }
 
-layer_draw :: proc(self: ^Layer)
+layer_paint :: proc(self: ^Layer)
 {
-    self.proc_draw(self.self)
+    self.proc_paint(self.self)
 }
 
 layer_stack_init :: proc(allocator := context.allocator) -> Layer_Stack
@@ -111,12 +112,17 @@ layer_stack_destroy :: proc(self: ^Layer_Stack)
     self.items = {}
 }
 
+layer_stack_len :: proc(self: ^Layer_Stack) -> int
+{
+    return len(self.items)
+}
+
 layer_stack_clear :: proc(self: ^Layer_Stack)
 {
     clear(&self.items)
 }
 
-layer_stack_insert :: proc(self: ^Layer_Stack, value: Layer) -> Handle(Layer)
+layer_stack_insert :: proc(self: ^Layer_Stack, value: Layer) -> int
 {
     _, error := append(&self.items, value)
 
@@ -126,7 +132,7 @@ layer_stack_insert :: proc(self: ^Layer_Stack, value: Layer) -> Handle(Layer)
         return  {}
     }
 
-    return layer_stack_find(self, len(self.items))
+    return len(self.items)
 }
 
 layer_stack_remove :: proc(self: ^Layer_Stack) -> (Layer, bool)
@@ -143,61 +149,55 @@ layer_stack_remove :: proc(self: ^Layer_Stack) -> (Layer, bool)
     return value, true
 }
 
-layer_stack_find :: proc(self: ^Layer_Stack, slot: int) -> Handle(Layer)
+layer_stack_find :: proc(self: ^Layer_Stack, ident: int) -> Handle(Layer)
 {
     handle := Handle(Layer) {}
 
-    if slot <= 0 || slot > len(self.items) {
+    if ident <= 0 || ident > len(self.items) {
         return handle
     }
 
-    handle.slot  = slot
-    handle.value = &self.items[slot - 1]
+    handle.ident = ident
+    handle.value = &self.items[ident - 1]
 
     return handle
-}
-
-layer_stack_size :: proc(self: ^Layer_Stack) -> int
-{
-    return len(self.items)
 }
 
 layer_stack_iter :: proc(self: ^Layer_Stack) -> Layer_Stack_Iter
 {
     return Layer_Stack_Iter {
         stack = self,
-        index = 1,
     }
 }
 
-layer_stack_next :: proc(self: ^Layer_Stack_Iter) -> (^Layer, int, bool)
+layer_stack_next_above :: proc(self: ^Layer_Stack_Iter) -> (^Layer, int, bool)
 {
-    handle := Handle(Layer) {}
-    size   := layer_stack_size(self.stack)
+    count := len(self.stack.items)
 
-    if self.index <= 0 || self.index > size {
+    if self.index < 0 || self.index >= count {
         return nil, 0, false
     }
 
-    handle = layer_stack_find(self.stack, self.index)
+    value := &self.stack.items[self.index]
+    ident := self.index + 1
 
-    self.index += 1
+    self.index = ident
 
-    return handle.value, handle.slot, handle.slot != 0
+    return value, ident, true
 }
 
-layer_stack_next_reverse :: proc(self: ^Layer_Stack_Iter) -> (^Layer, int, bool)
+layer_stack_next_below :: proc(self: ^Layer_Stack_Iter) -> (^Layer, int, bool)
 {
-    handle := Handle(Layer) {}
-    size   := layer_stack_size(self.stack)
+    count := len(self.stack.items)
 
-    if self.index <= 0 || self.index > size {
+    if self.index < 0 || self.index >= count {
         return nil, 0, false
     }
 
-    handle = layer_stack_find(self.stack, size - self.index + 1)
+    ident := self.index + 1
+    value := &self.stack.items[count - ident]
 
-    self.index += 1
+    self.index = ident
 
-    return handle.value, handle.slot, handle.slot != 0
+    return value, ident, true
 }
