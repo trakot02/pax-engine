@@ -9,6 +9,7 @@ import "core:time"
 
 App :: struct
 {
+    window:  ^Window,
     input:   Input_State,
     painter: Painter,
 
@@ -27,13 +28,15 @@ App_Config :: struct
 // Functions
 //
 
-app_init :: proc(self: ^App, allocator := context.allocator) -> bool
+app_init :: proc(self: ^App, dimension: [2]int, allocator := context.allocator) -> bool
 {
-    backend_init({320, 180}, "Pax") or_return
+    backend_init(dimension, "Pax") or_return
 
     self.table   = slot_table_init(Layer, allocator)
     self.stack   = layer_stack_init(allocator)
     self.painter = painter_init()
+
+    self.window = window_main()
 
     return true
 }
@@ -74,7 +77,7 @@ app_stack_clear :: proc(self: ^App)
     it := layer_stack_iter(&self.stack)
 
     for layer in layer_stack_next_below(&it) {
-        layer_leave(layer)
+        layer_leave(layer, self)
     }
 
     layer_stack_clear(&self.stack)
@@ -89,7 +92,7 @@ app_stack_push :: proc(self: ^App, ident: int) -> bool
         layer := layer_stack_find(&self.stack, ident)
 
         if layer.ident != 0 {
-            layer_enter(layer.value)
+            layer_enter(layer.value, self)
         }
 
         return layer.ident != 0
@@ -103,7 +106,7 @@ app_stack_pop :: proc(self: ^App)
     value, state := layer_stack_remove(&self.stack)
 
     if state == true {
-        layer_leave(&value)
+        layer_leave(&value, self)
     }
 }
 
@@ -128,7 +131,7 @@ app_stop :: proc(self: ^App)
     it := slot_table_iter(&self.table)
 
     for layer in slot_table_next(&it) {
-        layer_stop(layer)
+        layer_stop(layer, self)
     }
 }
 
@@ -151,17 +154,17 @@ app_loop :: proc(self: ^App, config: App_Config) -> bool
         frame_time  = time.duration_seconds(time.tick_lap_time(&tick))
         total_time += frame_time
 
-        app_paint(self)
+        app_event(self)
         app_frame(self, f32(frame_time))
 
         for delta_time < total_time && skips <= config.max_frame_skip {
-            app_step(self, f32(delta_time))
+            app_tick(self, f32(delta_time))
 
             total_time -= delta_time
             skips      += 1
         }
 
-        app_event(self)
+        app_paint(self)
     }
 
     app_stack_clear(self)
@@ -173,35 +176,34 @@ app_loop :: proc(self: ^App, config: App_Config) -> bool
 app_event :: proc(self: ^App)
 {
     event := poll_event()
-
-    input_reset(&self.input)
+    iter  := layer_stack_iter(&self.stack)
 
     for ; event != nil; event = poll_event() {
         input_event(&self.input, event)
 
-        it := layer_stack_iter(&self.stack)
-
-        for layer in layer_stack_next_below(&it) {
-            if layer_event(layer, event) == false { break }
+        for layer in layer_stack_next_below(&iter) {
+            if layer_event(layer, self, event) == false { break }
         }
     }
+
+    input_reset(&self.input)
 }
 
-app_frame :: proc(self: ^App, delta_time: f32)
+app_frame :: proc(self: ^App, frame_time: f32)
 {
-    it := layer_stack_iter(&self.stack)
+    iter := layer_stack_iter(&self.stack)
 
-    for layer in layer_stack_next_below(&it) {
-        layer_frame(layer, delta_time)
+    for layer in layer_stack_next_below(&iter) {
+        layer_frame(layer, self, frame_time)
     }
 }
 
-app_step :: proc(self: ^App, delta_time: f32)
+app_tick :: proc(self: ^App, delta_time: f32)
 {
-    it := layer_stack_iter(&self.stack)
+    iter := layer_stack_iter(&self.stack)
 
-    for layer in layer_stack_next_below(&it) {
-        layer_step(layer, delta_time)
+    for layer in layer_stack_next_below(&iter) {
+        layer_tick(layer, self, delta_time)
     }
 }
 
@@ -209,12 +211,12 @@ app_paint :: proc(self: ^App)
 {
     painter_begin_batch(&self.painter)
 
-    it := layer_stack_iter(&self.stack)
+    iter := layer_stack_iter(&self.stack)
 
-    for layer in layer_stack_next_above(&it) {
-        layer_paint(layer)
+    for layer in layer_stack_next_above(&iter) {
+        layer_paint(layer, self)
     }
 
     painter_end_batch(&self.painter)
-    window_swap_buffers(nil)
+    window_swap_buffers(self.window)
 }

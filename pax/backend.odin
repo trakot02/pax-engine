@@ -32,10 +32,16 @@ when BACKEND == .SDL2 {
     window_swap_buffers  :: sdl2_window_swap_buffers
     window_show          :: sdl2_window_show
     window_hide          :: sdl2_window_hide
+    window_get_title     :: sdl2_window_get_title
+    window_get_flags     :: sdl2_window_get_flags
     window_get_position  :: sdl2_window_get_position
     window_get_dimension :: sdl2_window_get_dimension
+    window_get_rect      :: sdl2_window_get_rect
+    window_set_title     :: sdl2_window_set_title
+    window_set_flags     :: sdl2_window_set_flags
     window_set_position  :: sdl2_window_set_position
     window_set_dimension :: sdl2_window_set_dimension
+    window_set_rect      :: sdl2_window_set_rect
 }
 
 when BACKEND == .SDL3 {}

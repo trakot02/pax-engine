@@ -278,9 +278,9 @@ sdl2_window_resize_to_event :: proc(window: sdl.WindowEvent) -> Window_Resize_Ev
     }
 }
 
-sdl2_window_main :: proc() -> sdl2_Window
+sdl2_window_main :: proc() -> ^sdl2_Window
 {
-    return sdl2_main_window
+    return &sdl2_main_window
 }
 
 sdl2_window_init :: proc(dimension: [2]int, title: string) -> (sdl2_Window, bool)
@@ -328,62 +328,95 @@ sdl2_window_init :: proc(dimension: [2]int, title: string) -> (sdl2_Window, bool
     return {}, false
 }
 
-sdl2_window_destroy :: proc(self: ^sdl2_Window = nil)
+sdl2_window_destroy :: proc(self: ^sdl2_Window)
 {
-    switch self != nil {
-        case true:  sdl.DestroyWindow(self.value)
-        case false: sdl.DestroyWindow(sdl2_main_window.value)
-    }
+    sdl.DestroyWindow(self.value)
 }
 
-sdl2_window_swap_buffers :: proc(self: ^sdl2_Window = nil)
+sdl2_window_swap_buffers :: proc(self: ^sdl2_Window)
 {
-    switch self != nil {
-        case true:  sdl.GL_SwapWindow(self.value)
-        case false: sdl.GL_SwapWindow(sdl2_main_window.value)
-    }
+    sdl.GL_SwapWindow(self.value)
 }
 
-sdl2_window_show :: proc(self: ^sdl2_Window = nil)
+sdl2_window_show :: proc(self: ^sdl2_Window)
 {
-    switch self != nil {
-        case true:  sdl.ShowWindow(self.value)
-        case false: sdl.ShowWindow(sdl2_main_window.value)
-    }
+    sdl.ShowWindow(self.value)
 }
 
-sdl2_window_hide :: proc(self: ^sdl2_Window = nil)
+sdl2_window_hide :: proc(self: ^sdl2_Window)
 {
-    switch self != nil {
-        case true:  sdl.HideWindow(self.value)
-        case false: sdl.HideWindow(sdl2_main_window.value)
-    }
+    sdl.HideWindow(self.value)
 }
 
-sdl2_window_get_position :: proc(self: ^sdl2_Window = nil) -> [2]int
+sdl2_window_get_title :: proc(self: ^sdl2_Window) -> string
+{
+    return ""
+}
+
+sdl2_window_get_flags :: proc(self: ^sdl2_Window)
+{}
+
+sdl2_window_get_rect :: proc(self: ^sdl2_Window) -> [4]int
+{
+    left   := i32(0)
+    top    := i32(0)
+    width  := i32(0)
+    height := i32(0)
+
+    sdl.GetWindowPosition(self.value, &left, &top)
+    sdl.GetWindowSize(self.value, &width, &height)
+
+    return {int(left), int(top), int(width), int(height)}
+}
+
+sdl2_window_get_position :: proc(self: ^sdl2_Window) -> [2]int
 {
     left := i32(0)
     top  := i32(0)
 
-    switch self != nil {
-        case true:  sdl.GetWindowPosition(self.value, &left, &top)
-        case false: sdl.GetWindowPosition(sdl2_main_window.value, &left, &top)
-    }
+    sdl.GetWindowPosition(self.value, &left, &top)
 
     return {int(left), int(top)}
 }
 
-sdl2_window_get_dimension :: proc(self: ^sdl2_Window = nil) -> [2]int
+sdl2_window_get_dimension :: proc(self: ^sdl2_Window) -> [2]int
 {
     width  := i32(0)
     height := i32(0)
 
-    switch self != nil {
-        case true:  sdl.GetWindowSize(self.value, &width, &height)
-        case false: sdl.GetWindowSize(sdl2_main_window.value, &width, &height)
-    }
+    sdl.GetWindowSize(self.value, &width, &height)
 
     return {int(width), int(height)}
+}
+
+sdl2_window_set_title :: proc(self: ^sdl2_Window, title: string)
+{
+    clone, error := strings.clone_to_cstring(title,
+        context.temp_allocator)
+
+    if error != nil {
+        log.errorf("Window: ")
+
+        return
+    }
+
+    defer mem.free_all(context.temp_allocator)
+
+    sdl.SetWindowTitle(self.value, clone)
+}
+
+sdl2_window_set_flags :: proc(self: ^sdl2_Window, flags: int)
+{}
+
+sdl2_window_set_rect :: proc(self: ^sdl2_Window, rect: [4]int)
+{
+    left   := i32(rect.x)
+    top    := i32(rect.y)
+    width  := i32(rect.z)
+    height := i32(rect.w)
+
+    sdl.SetWindowPosition(self.value, left, top)
+    sdl.SetWindowSize(self.value, width, height)
 }
 
 sdl2_window_set_position :: proc(self: ^sdl2_Window, position: [2]int)
@@ -391,10 +424,7 @@ sdl2_window_set_position :: proc(self: ^sdl2_Window, position: [2]int)
     top  := i32(position.x)
     left := i32(position.y)
 
-    switch self != nil {
-        case true:  sdl.SetWindowPosition(self.value, top, left)
-        case false: sdl.SetWindowPosition(sdl2_main_window.value, top, left)
-    }
+    sdl.SetWindowPosition(self.value, top, left)
 }
 
 sdl2_window_set_dimension :: proc(self: ^sdl2_Window, dimension: [2]int)
@@ -402,8 +432,5 @@ sdl2_window_set_dimension :: proc(self: ^sdl2_Window, dimension: [2]int)
     width  := i32(dimension.x)
     height := i32(dimension.y)
 
-    switch self != nil {
-        case true:  sdl.SetWindowSize(self.value, width, height)
-        case false: sdl.SetWindowSize(sdl2_main_window.value, width, height)
-    }
+    sdl.SetWindowSize(self.value, width, height)
 }

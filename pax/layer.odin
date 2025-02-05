@@ -7,21 +7,21 @@ import "core:log"
 //
 
 LAYER := Layer {
-    proc_start = proc(self: rawptr, data: rawptr) -> bool {
+    proc_start = proc(self: rawptr, app: ^App) -> bool {
         return true
     },
 
-    proc_stop  = proc(self: rawptr) {},
-    proc_enter = proc(self: rawptr) {},
-    proc_leave = proc(self: rawptr) {},
+    proc_stop  = proc(self: rawptr, app: ^App) {},
+    proc_enter = proc(self: rawptr, app: ^App) {},
+    proc_leave = proc(self: rawptr, app: ^App) {},
 
-    proc_event = proc(self: rawptr, event: Event) -> bool {
+    proc_event = proc(self: rawptr, app: ^App, event: Event) -> bool {
         return true
     },
 
-    proc_frame = proc(self: rawptr, frame_time: f32) {},
-    proc_step  = proc(self: rawptr, delta_time: f32) {},
-    proc_paint = proc(self: rawptr) {},
+    proc_frame = proc(self: rawptr, app: ^App, frame_time: f32) {},
+    proc_tick  = proc(self: rawptr, app: ^App, delta_time: f32) {},
+    proc_paint = proc(self: rawptr, app: ^App) {},
 }
 
 //
@@ -32,14 +32,14 @@ Layer :: struct
 {
     self: rawptr,
 
-    proc_start: proc(self: rawptr, data: rawptr) -> bool,
-    proc_stop:  proc(self: rawptr),
-    proc_enter: proc(self: rawptr),
-    proc_leave: proc(self: rawptr),
-    proc_event: proc(self: rawptr, event: Event) -> bool,
-    proc_frame: proc(self: rawptr, frame_time: f32),
-    proc_step:  proc(self: rawptr, delta_time: f32),
-    proc_paint: proc(self: rawptr),
+    proc_start: proc(self: rawptr, app: ^App) -> bool,
+    proc_stop:  proc(self: rawptr, app: ^App),
+    proc_enter: proc(self: rawptr, app: ^App),
+    proc_leave: proc(self: rawptr, app: ^App),
+    proc_event: proc(self: rawptr, app: ^App, event: Event) -> bool,
+    proc_frame: proc(self: rawptr, app: ^App, frame_time: f32),
+    proc_tick:  proc(self: rawptr, app: ^App, delta_time: f32),
+    proc_paint: proc(self: rawptr, app: ^App),
 }
 
 Layer_Stack :: struct
@@ -58,44 +58,44 @@ Layer_Stack_Iter :: struct
 // Functions
 //
 
-layer_start :: proc(self: ^Layer, data: rawptr) -> bool
+layer_start :: proc(self: ^Layer, app: ^App) -> bool
 {
-    return self.proc_start(self.self, data)
+    return self.proc_start(self.self, app)
 }
 
-layer_stop :: proc(self: ^Layer)
+layer_stop :: proc(self: ^Layer, app: ^App)
 {
-    self.proc_stop(self.self)
+    self.proc_stop(self.self, app)
 }
 
-layer_enter :: proc(self: ^Layer)
+layer_enter :: proc(self: ^Layer, app: ^App)
 {
-    self.proc_enter(self.self)
+    self.proc_enter(self.self, app)
 }
 
-layer_leave :: proc(self: ^Layer)
+layer_leave :: proc(self: ^Layer, app: ^App)
 {
-    self.proc_leave(self.self)
+    self.proc_leave(self.self, app)
 }
 
-layer_event :: proc(self: ^Layer, event: Event) -> bool
+layer_event :: proc(self: ^Layer, app: ^App, event: Event) -> bool
 {
-    return self.proc_event(self.self, event)
+    return self.proc_event(self.self, app, event)
 }
 
-layer_frame :: proc(self: ^Layer, frame_time: f32)
+layer_frame :: proc(self: ^Layer, app: ^App, frame_time: f32)
 {
-    self.proc_frame(self.self, frame_time)
+    self.proc_frame(self.self, app, frame_time)
 }
 
-layer_step :: proc(self: ^Layer, delta_time: f32)
+layer_tick :: proc(self: ^Layer, app: ^App, delta_time: f32)
 {
-    self.proc_step(self.self, delta_time)
+    self.proc_tick(self.self, app, delta_time)
 }
 
-layer_paint :: proc(self: ^Layer)
+layer_paint :: proc(self: ^Layer, app: ^App)
 {
-    self.proc_paint(self.self)
+    self.proc_paint(self.self, app)
 }
 
 layer_stack_init :: proc(allocator := context.allocator) -> Layer_Stack
