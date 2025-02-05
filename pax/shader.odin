@@ -26,7 +26,7 @@ Shader_Builder :: struct
 // Functions
 //
 
-shader_vertex :: proc(self: ^Shader_Builder, vertex: string) -> bool
+shader_set_vertex :: proc(self: ^Shader_Builder, vertex: string) -> bool
 {
     clone, error := strings.clone_to_cstring(vertex,
         context.temp_allocator)
@@ -51,7 +51,7 @@ shader_vertex :: proc(self: ^Shader_Builder, vertex: string) -> bool
     return true
 }
 
-shader_geometry :: proc(self: ^Shader_Builder, geometry: string) -> bool
+shader_set_geometry :: proc(self: ^Shader_Builder, geometry: string) -> bool
 {
     clone, error := strings.clone_to_cstring(geometry,
         context.temp_allocator)
@@ -76,7 +76,7 @@ shader_geometry :: proc(self: ^Shader_Builder, geometry: string) -> bool
     return true
 }
 
-shader_fragment :: proc(self: ^Shader_Builder, fragment: string) -> bool
+shader_set_fragment :: proc(self: ^Shader_Builder, fragment: string) -> bool
 {
     clone, error := strings.clone_to_cstring(fragment,
         context.temp_allocator)

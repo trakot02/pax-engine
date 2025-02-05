@@ -1,6 +1,8 @@
 package test
 
+import "../pax"
+
 main :: proc()
 {
-    // emtpy...
+    // empty...
 }

@@ -23,12 +23,14 @@ Paint_Vertex :: struct
 {
     position: [2]f32,
     color:    [4]f32,
+    texture:  [2]f32,
 }
 
 Painter_Batch :: struct
 {
-    array: [PAINTER_VERTEX_MAX]Paint_Vertex,
-    count: int,
+    texture: ^Texture,
+    array:   [PAINTER_VERTEX_MAX]Paint_Vertex,
+    count:   int,
 }
 
 Painter :: struct
@@ -61,12 +63,16 @@ painter_init :: proc() -> Painter
 
     gl.EnableVertexAttribArray(0)
     gl.EnableVertexAttribArray(1)
+    gl.EnableVertexAttribArray(2)
 
     gl.VertexAttribPointer(0, 2, gl.FLOAT, false, size_of(Paint_Vertex),
         offset_of(Paint_Vertex, position))
 
     gl.VertexAttribPointer(1, 4, gl.FLOAT, false, size_of(Paint_Vertex),
         offset_of(Paint_Vertex, color))
+
+    gl.VertexAttribPointer(2, 2, gl.FLOAT, false, size_of(Paint_Vertex),
+        offset_of(Paint_Vertex, texture))
 
     gl.BindVertexArray(0)
 
@@ -131,20 +137,33 @@ painter_end_batch :: proc(self: ^Painter)
 
     bytes := self.batch.count * PAINT_VERTEX_SIZE 
 
-    gl.BindVertexArray(u32(self.array))
-    gl.BufferSubData(gl.ARRAY_BUFFER, 0, bytes, raw_data(&self.batch.array))
+    if self.batch.texture != nil {
+        gl.BindTexture(gl.TEXTURE_2D, u32(self.batch.texture.ident))
+    }
 
-    gl.Viewport(left, top, width, height)
-    gl.DrawArrays(gl.TRIANGLES, 0, i32(self.batch.count))
+    if bytes != 0 {
+        gl.BindVertexArray(u32(self.array))
+        gl.BufferSubData(gl.ARRAY_BUFFER, 0, bytes, raw_data(&self.batch.array))
+
+        gl.Viewport(left, top, width, height)
+        gl.DrawArrays(gl.TRIANGLES, 0, i32(self.batch.count))
+    }
 }
 
-painter_batch_poly3 :: proc(self: ^Painter, polygon: [3]Paint_Vertex)
+painter_batch_poly3 :: proc(self: ^Painter, polygon: [3]Paint_Vertex, texture: ^Texture = nil)
 {
     count := self.batch.count + 3 
 
     if count >= PAINTER_VERTEX_MAX {
         painter_end_batch(self)
         painter_begin_batch(self)
+    }
+
+    if self.batch.texture != texture {
+        painter_end_batch(self)
+        painter_begin_batch(self)
+
+        self.batch.texture = texture
     }
 
     self.batch.array[self.batch.count + 0] = polygon[0]
@@ -154,13 +173,20 @@ painter_batch_poly3 :: proc(self: ^Painter, polygon: [3]Paint_Vertex)
     self.batch.count = count
 }
 
-painter_batch_poly4 :: proc(self: ^Painter, polygon: [4]Paint_Vertex)
+painter_batch_poly4 :: proc(self: ^Painter, polygon: [4]Paint_Vertex, texture: ^Texture = nil)
 {
     count := self.batch.count + 6 
 
     if count >= PAINTER_VERTEX_MAX {
         painter_end_batch(self)
         painter_begin_batch(self)
+    }
+
+    if self.batch.texture != texture {
+        painter_end_batch(self)
+        painter_begin_batch(self)
+
+        self.batch.texture = texture
     }
 
     self.batch.array[self.batch.count + 0] = polygon[0]
@@ -173,10 +199,14 @@ painter_batch_poly4 :: proc(self: ^Painter, polygon: [4]Paint_Vertex)
     self.batch.count = count
 }
 
-paint_vertex_init :: proc(position: [2]f32, color: [4]u8) -> Paint_Vertex
+paint_vertex_init :: proc(position: [2]f32, color: [4]u8, texture: [2]f32) -> Paint_Vertex
 {
     return {
         position = position,
         color    = color_to_vec4_f32(color),
+        texture  = {
+            clamp(texture.x, 0, 1),
+            clamp(texture.y, 0, 1),
+        }
     }
 }

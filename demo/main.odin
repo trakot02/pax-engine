@@ -14,8 +14,9 @@ WINDOW_DIMENSION := WINDOW_RESOLUTION * WINDOW_SCALE
 
 Demo_Layer :: struct
 {
-    shader: pax.Shader,
-    view:   pax.View,
+    shader:  pax.Shader,
+    texture: pax.Texture,
+    view:    pax.View,
 
     ctrls: [4]b8,
 
@@ -25,15 +26,17 @@ Demo_Layer :: struct
 
 demo_layer_start :: proc(self: ^Demo_Layer, app: ^pax.App) -> bool
 {
-    builder := pax.Shader_Builder {}
+    shader  := pax.Shader_Builder {}
+    texture := pax.Texture_Builder {}
     dim     := WINDOW_DIMENSION
     res     := WINDOW_RESOLUTION
 
-    pax.shader_vertex(&builder, #load("../data/vertex.glsl"))
-    pax.shader_fragment(&builder, #load("../data/fragment.glsl"))
+    pax.shader_set_vertex(&shader, #load("../data/vertex.glsl"))
+    pax.shader_set_fragment(&shader, #load("../data/fragment.glsl"))
 
-    self.shader = pax.shader_init(&builder) or_return
-    self.speed  = 300
+    self.shader  = pax.shader_init(&shader) or_return
+    self.texture = pax.texture_read(&texture, "data/atlas.png") or_return
+    self.speed   = 300
 
     pax.view_set_viewport(&self.view, {0, 0, dim.x, dim.y})
     pax.view_set_dimension(&self.view, res)
@@ -107,11 +110,11 @@ demo_layer_paint :: proc(self: ^Demo_Layer, app: ^pax.App)
     pax.painter_set_mat4_f32(&app.painter, "unif_view", pax.view_get_matrix(&self.view))
 
     pax.painter_batch_poly4(&app.painter, {
-        pax.paint_vertex_init({  0,   0}, pax.color_from_u32le(0xff0000ff)),
-        pax.paint_vertex_init({  0, 100}, pax.color_from_u32le(0xffff00ff)),
-        pax.paint_vertex_init({100, 100}, pax.color_from_u32le(0x00ffffff)),
-        pax.paint_vertex_init({100,   0}, pax.color_from_u32le(0x0000ffff)),
-    })
+        pax.paint_vertex_init({ 0,  0}, pax.color_from_u32le(0xffffffff), {0, 0}),
+        pax.paint_vertex_init({ 0, 80}, pax.color_from_u32le(0xffffffff), {0, 1}),
+        pax.paint_vertex_init({40, 80}, pax.color_from_u32le(0xffffffff), {1, 1}),
+        pax.paint_vertex_init({40,  0}, pax.color_from_u32le(0xffffffff), {1, 0}),
+    }, &self.texture)
 
     pax.painter_clear_color(&app.painter, {0, 0, 0, 1})
 }
@@ -148,18 +151,20 @@ main :: proc()
 
     app := pax.App {}
 
-    demo      := Demo_Layer {}
-    dimension := WINDOW_DIMENSION
+    demo := Demo_Layer {}
+    dim  := WINDOW_DIMENSION
 
-    if pax.app_init(&app, {int(dimension.x), int(dimension.y)}) {
-        demo_ident := pax.app_create_layer(&app, demo_layer(&demo))
-
-        pax.app_loop(&app, {
-            first_layer    = demo_ident,
-            max_frame_rate = 64,
-            max_frame_skip = 64,
-        })
-
-        pax.app_destroy(&app)
+    if pax.app_init(&app, {int(dim.x), int(dim.y)}) == false {
+        return
     }
+
+    demo_ident := pax.app_create_layer(&app, demo_layer(&demo))
+
+    pax.app_loop(&app, {
+        first_layer    = demo_ident,
+        max_frame_rate = 64,
+        max_frame_skip = 64,
+    })
+
+    pax.app_destroy(&app)
 }

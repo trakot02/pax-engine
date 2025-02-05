@@ -117,20 +117,37 @@ app_stack_set :: proc(self: ^App, ident: int) -> bool
     return app_stack_push(self, ident)
 }
 
-app_start :: proc(self: ^App)
+app_start :: proc(self: ^App) -> bool
 {
-    it := slot_table_iter(&self.table)
+    iter := slot_table_iter(&self.table)
+    last := 0
+    succ := true
 
-    for layer in slot_table_next(&it) {
-        layer_start(layer, self)
+    for layer, ident in slot_table_next(&iter) {
+        last = ident
+        succ = layer_start(layer, self)
+
+        if succ == false { break }
     }
+
+    if succ == false {
+        iter = slot_table_iter(&self.table)
+
+        for layer, ident in slot_table_next(&iter) {
+            if last == ident { break }
+
+            layer_stop(layer, self)
+        }
+    }
+
+    return succ
 }
 
 app_stop :: proc(self: ^App)
 {
-    it := slot_table_iter(&self.table)
+    iter := slot_table_iter(&self.table)
 
-    for layer in slot_table_next(&it) {
+    for layer in slot_table_next(&iter) {
         layer_stop(layer, self)
     }
 }
@@ -147,7 +164,8 @@ app_loop :: proc(self: ^App, config: App_Config) -> bool
     frame_rate = max(1.0, f64(config.max_frame_rate))
     delta_time = 1.0 / frame_rate
 
-    app_start(self)
+    if app_start(self) == false { return false }
+
     app_stack_set(self, config.first_layer)
 
     for skips := 0; layer_stack_len(&self.stack) > 0; skips = 0 {
