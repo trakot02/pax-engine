@@ -15,18 +15,24 @@ Texture :: struct
 {
     ident:     int,
     dimension: [2]int,
+    channels:  int,
 }
 
 Texture_Builder :: struct
 {
+    bytes:     [^]byte,
     dimension: [2]int,
     channels:  int,
-    bytes:     [^]byte,
 }
 
 //
 // Functions
 //
+
+texture_set_bytes :: proc(self: ^Texture_Builder, bytes: [^]byte)
+{
+    self.bytes = bytes
+}
 
 texture_set_dimension :: proc(self: ^Texture_Builder, dimension: [2]int)
 {
@@ -38,16 +44,12 @@ texture_set_channels :: proc(self: ^Texture_Builder, channels: int)
     self.channels = channels
 }
 
-texture_set_bytes :: proc(self: ^Texture_Builder, bytes: [^]byte)
-{
-    self.bytes = bytes
-}
-
 texture_init :: proc(self: ^Texture_Builder) -> (Texture, bool)
 {
-    ident  := u32(0)
-    width  := i32(self.dimension.x)
-    height := i32(self.dimension.y)
+    ident    := u32(0)
+    width    := i32(self.dimension.x)
+    height   := i32(self.dimension.y)
+    channels := self.channels
 
     gl.GenTextures(1, &ident)
     gl.BindTexture(gl.TEXTURE_2D, ident)
@@ -65,11 +67,14 @@ texture_init :: proc(self: ^Texture_Builder) -> (Texture, bool)
     return Texture {
         ident     = int(ident),
         dimension = {int(width), int(height)},
+        channels  = channels,
     }, true
 }
 
-texture_read :: proc(self: ^Texture_Builder, name: string) -> (Texture, bool)
+texture_read :: proc(name: string) -> (Texture, bool)
 {
+    builder := Texture_Builder {}
+
     clone, error := strings.clone_to_cstring(name,
         context.temp_allocator)
 
@@ -93,13 +98,13 @@ texture_read :: proc(self: ^Texture_Builder, name: string) -> (Texture, bool)
         return {}, false
     }
 
-    defer stbi.image_free(self.bytes)
+    defer stbi.image_free(builder.bytes)
 
-    texture_set_dimension(self, {int(width), int(height)})
-    texture_set_channels(self, int(channels))
-    texture_set_bytes(self, bytes)
+    builder.bytes     = bytes
+    builder.dimension = {int(width), int(height)}
+    builder.channels  = int(channels)
 
-    return texture_init(self)
+    return texture_init(&builder)
 }
 
 texture_destroy :: proc(self: ^Texture)
@@ -119,4 +124,14 @@ texture_bind :: proc(self: ^Texture)
 texture_unbind :: proc(self: ^Texture)
 {
     gl.BindTexture(gl.TEXTURE_2D, 0)
+}
+
+texture_get_relative :: proc(self: ^Texture, position: [2]int) -> [2]f32
+{
+    if self == nil { return {} }
+
+    return {
+        clamp(f32(position.x) / f32(self.dimension.x), 0, 1),
+        clamp(f32(position.y) / f32(self.dimension.y), 0, 1),
+    }
 }

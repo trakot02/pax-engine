@@ -105,6 +105,8 @@ Keyboard_Button :: enum i32
     BTN_7,
     BTN_8,
     BTN_9,
+
+    BTN_F11,
 }
 
 Keyboard_Key :: enum i32
@@ -151,6 +153,8 @@ Keyboard_Key :: enum i32
     KEY_7,
     KEY_8,
     KEY_9,
+
+    KEY_F11,
 }
 
 Keyboard_State :: struct

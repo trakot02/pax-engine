@@ -154,13 +154,12 @@ slot_table_remove :: proc(self: ^Slot_Table($Val), ident: int) -> (Val, bool)
     return {}, false
 }
 
-slot_table_find :: proc(self: ^Slot_Table($Val), ident: int) -> Handle(Val)
+slot_table_find :: proc(self: ^Slot_Table($Val), ident: int) -> ^Val
 {
-    handle := Handle(Val) {}
     index  := int {}
     other  := int {}
 
-    if self.items_size <= 0 { return handle }
+    if self.items_size <= 0 { return nil }
 
     if 0 < ident && ident <= len(self.outer) {
         index = self.outer[ident - 1]
@@ -171,11 +170,10 @@ slot_table_find :: proc(self: ^Slot_Table($Val), ident: int) -> Handle(Val)
     }
 
     if other == ident && other != 0 {
-        handle.ident = ident
-        handle.value = &self.items[index - 1]
+        return &self.items[index - 1]
     }
 
-    return handle
+    return nil 
 }
 
 slot_table_iter :: proc(self: ^Slot_Table($Val)) -> Slot_Table_Iter(Val)
@@ -187,16 +185,16 @@ slot_table_iter :: proc(self: ^Slot_Table($Val)) -> Slot_Table_Iter(Val)
 
 slot_table_next :: proc(self: ^Slot_Table_Iter($Val)) -> (^Val, int, bool)
 {
-    list_size := self.table.items_size
+    count := self.table.items_size
 
-    if self.index < 0 || self.index >= list_size {
-        return nil, 0, false
+    if self.index >= 0 && self.index < count {
+        value := &self.table.items[self.index]
+        ident := self.index + 1
+
+        self.index = ident
+
+        return value, ident, true
     }
 
-    value := &self.table.items[self.index]
-    ident := self.index + 1
-
-    self.index = ident
-
-    return value, ident, true
+    return nil, 0, false
 }

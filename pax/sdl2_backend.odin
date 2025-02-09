@@ -63,6 +63,8 @@ SDL2_KEYBOARD_BUTTON := [512]Keyboard_Button {
     sdl.Scancode.NUM7 = .BTN_7,
     sdl.Scancode.NUM8 = .BTN_8,
     sdl.Scancode.NUM9 = .BTN_9,
+
+    sdl.Scancode.F11 = .BTN_F11,
 }
 
 SDL2_KEYBOARD_BUTTON_TO_SCANCODE := [Keyboard_Button]sdl.Scancode {
@@ -108,6 +110,8 @@ SDL2_KEYBOARD_BUTTON_TO_SCANCODE := [Keyboard_Button]sdl.Scancode {
     .BTN_7 = .NUM7,
     .BTN_8 = .NUM8,
     .BTN_9 = .NUM9,
+
+    .BTN_F11 = .F11,
 }
 
 SDL2_KEYBOARD_KEY_TO_KEYCODE := [Keyboard_Key]sdl.Keycode {
@@ -153,6 +157,8 @@ SDL2_KEYBOARD_KEY_TO_KEYCODE := [Keyboard_Key]sdl.Keycode {
     .KEY_7 = .NUM7,
     .KEY_8 = .NUM8,
     .KEY_9 = .NUM9,
+
+    .KEY_F11 = .F11,
 }
 
 sdl2_main_window := sdl2_Window {}
@@ -338,23 +344,10 @@ sdl2_window_swap_buffers :: proc(self: ^sdl2_Window)
     sdl.GL_SwapWindow(self.value)
 }
 
-sdl2_window_show :: proc(self: ^sdl2_Window)
-{
-    sdl.ShowWindow(self.value)
-}
-
-sdl2_window_hide :: proc(self: ^sdl2_Window)
-{
-    sdl.HideWindow(self.value)
-}
-
 sdl2_window_get_title :: proc(self: ^sdl2_Window) -> string
 {
     return ""
 }
-
-sdl2_window_get_flags :: proc(self: ^sdl2_Window)
-{}
 
 sdl2_window_get_rect :: proc(self: ^sdl2_Window) -> [4]int
 {
@@ -389,6 +382,16 @@ sdl2_window_get_dimension :: proc(self: ^sdl2_Window) -> [2]int
     return {int(width), int(height)}
 }
 
+sdl2_window_get_visible :: proc(self: ^sdl2_Window) -> bool
+{
+    return (sdl.GetWindowFlags(self.value) & u32(sdl.WindowFlag.SHOWN)) != 0
+}
+
+sdl2_window_get_decorated :: proc(self: ^sdl2_Window) -> bool
+{
+    return (sdl.GetWindowFlags(self.value) & ~u32(sdl.WindowFlags.BORDERLESS)) != 0
+}
+
 sdl2_window_set_title :: proc(self: ^sdl2_Window, title: string)
 {
     clone, error := strings.clone_to_cstring(title,
@@ -404,9 +407,6 @@ sdl2_window_set_title :: proc(self: ^sdl2_Window, title: string)
 
     sdl.SetWindowTitle(self.value, clone)
 }
-
-sdl2_window_set_flags :: proc(self: ^sdl2_Window, flags: int)
-{}
 
 sdl2_window_set_rect :: proc(self: ^sdl2_Window, rect: [4]int)
 {
@@ -433,4 +433,17 @@ sdl2_window_set_dimension :: proc(self: ^sdl2_Window, dimension: [2]int)
     height := i32(dimension.y)
 
     sdl.SetWindowSize(self.value, width, height)
+}
+
+sdl2_window_set_visible :: proc(self: ^sdl2_Window, state: bool)
+{
+    switch state {
+        case true:  sdl.ShowWindow(self.value)
+        case false: sdl.HideWindow(self.value)
+    }
+}
+
+sdl2_window_set_decorated :: proc(self: ^sdl2_Window, state: bool)
+{
+    sdl.SetWindowBordered(self.value, sdl.bool(state))
 }
