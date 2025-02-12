@@ -38,7 +38,7 @@ TEST_TABLE := [Button_State]bool {
 
 Button_State :: enum
 {
-    IDLE, PRESS, ACTIVE, RELEASE
+    IDLE, PRESS, ACTIVE, RELEASE,
 }
 
 Mouse_Button :: enum i32
@@ -106,7 +106,18 @@ Keyboard_Button :: enum i32
     BTN_8,
     BTN_9,
 
+    BTN_F1,
+    BTN_F2,
+    BTN_F3,
+    BTN_F4,
+    BTN_F5,
+    BTN_F6,
+    BTN_F7,
+    BTN_F8,
+    BTN_F9,
+    BTN_F10,
     BTN_F11,
+    BTN_F12,
 }
 
 Keyboard_Key :: enum i32
@@ -154,7 +165,18 @@ Keyboard_Key :: enum i32
     KEY_8,
     KEY_9,
 
+    KEY_F1,
+    KEY_F2,
+    KEY_F3,
+    KEY_F4,
+    KEY_F5,
+    KEY_F6,
+    KEY_F7,
+    KEY_F8,
+    KEY_F9,
+    KEY_F10,
     KEY_F11,
+    KEY_F12,
 }
 
 Keyboard_State :: struct

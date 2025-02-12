@@ -7,13 +7,14 @@ import "core:time"
 // Definitions
 //
 
+// TODO(gio): Split internal state and accessible state.
 App :: struct
 {
     window:  ^Window,
     render:  Render_State,
     input:   Input_State,
 
-    table: Slot_Table(Scene),
+    table: Slot_Table(Scene_Layer),
     stack: Scene_Stack,
 }
 
@@ -32,21 +33,21 @@ app_init :: proc(self: ^App, allocator := context.allocator) -> bool
 {
     backend_init({320, 180}, "Pax") or_return
 
-    self.table = slot_table_init(Scene, allocator)
-    self.stack = scene_stack_init(allocator)
-
-    self.render = render_init()
+    self.render = render_init() or_return
     self.window = window_main()
+
+    self.table = slot_table_init(Scene_Layer, allocator)
+    self.stack = scene_stack_init(allocator)
 
     return true
 }
 
 app_destroy :: proc(self: ^App)
 {
-    render_destroy(&self.render)
-
     scene_stack_destroy(&self.stack)
     slot_table_destroy(&self.table)
+
+    render_destroy(&self.render)
 
     backend_destroy()
 }
@@ -57,33 +58,33 @@ app_clear :: proc(self: ^App)
     scene_stack_clear(&self.stack)
 }
 
-app_insert_scene :: proc(self: ^App, value: Scene) -> int
+app_insert_scene :: proc(self: ^App, value: Scene_Layer) -> int
 {
     return slot_table_insert(&self.table, value)
 }
 
-app_remove_scene :: proc(self: ^App, ident: int) -> (Scene, bool)
+app_remove_scene :: proc(self: ^App, ident: int) -> (Scene_Layer, bool)
 {
     return slot_table_remove(&self.table, ident)
 }
 
-app_find_scene :: proc(self: ^App, ident: int) -> ^Scene
+app_find_scene :: proc(self: ^App, ident: int) -> ^Scene_Layer
 {
     return slot_table_find(&self.table, ident)
 }
 
-app_stack_clear :: proc(self: ^App)
+app_clear_stack :: proc(self: ^App)
 {
     iter := scene_stack_iter(&self.stack)
 
     for scene in scene_stack_next_below(&iter) {
-        scene_leave(scene, self)
+        scene_layer_leave(scene, self)
     }
 
     scene_stack_clear(&self.stack)
 }
 
-app_stack_push :: proc(self: ^App, ident: int) -> bool
+app_push_scene :: proc(self: ^App, ident: int) -> bool
 {
     value := app_find_scene(self, ident)
 
@@ -92,7 +93,7 @@ app_stack_push :: proc(self: ^App, ident: int) -> bool
         value  = scene_stack_find(&self.stack, ident)
 
         if value != nil {
-            scene_enter(value, self)
+            scene_layer_enter(value, self)
         }
 
         return value != nil
@@ -101,20 +102,20 @@ app_stack_push :: proc(self: ^App, ident: int) -> bool
     return false
 }
 
-app_stack_pop :: proc(self: ^App)
+app_pop_scene :: proc(self: ^App)
 {
     value, state := scene_stack_remove(&self.stack)
 
     if state == true {
-        scene_leave(&value, self)
+        scene_layer_leave(&value, self)
     }
 }
 
-app_stack_set :: proc(self: ^App, ident: int) -> bool
+app_set_scene :: proc(self: ^App, ident: int) -> bool
 {
-    app_stack_clear(self)
+    app_clear_stack(self)
 
-    return app_stack_push(self, ident)
+    return app_push_scene(self, ident)
 }
 
 app_start :: proc(self: ^App) -> bool
@@ -125,7 +126,7 @@ app_start :: proc(self: ^App) -> bool
 
     for scene, ident in slot_table_next(&iter) {
         last = ident
-        succ = scene_start(scene, self)
+        succ = scene_layer_start(scene, self)
 
         if succ == false { break }
     }
@@ -136,7 +137,7 @@ app_start :: proc(self: ^App) -> bool
         for scene, ident in slot_table_next(&iter) {
             if last == ident { break }
 
-            scene_stop(scene, self)
+            scene_layer_stop(scene, self)
         }
     }
 
@@ -148,7 +149,7 @@ app_stop :: proc(self: ^App)
     iter := slot_table_iter(&self.table)
 
     for scene in slot_table_next(&iter) {
-        scene_stop(scene, self)
+        scene_layer_stop(scene, self)
     }
 }
 
@@ -166,7 +167,7 @@ app_loop :: proc(self: ^App, config: App_Config) -> bool
 
     if app_start(self) == false { return false }
 
-    app_stack_set(self, config.first_scene)
+    app_set_scene(self, config.first_scene)
 
     for skips := 0; scene_stack_len(&self.stack) > 0; skips = 0 {
         frame_time  = time.duration_seconds(time.tick_lap_time(&tick))
@@ -190,7 +191,7 @@ app_loop :: proc(self: ^App, config: App_Config) -> bool
         window_swap_buffers(self.window)
     }
 
-    app_stack_clear(self)
+    app_clear_stack(self)
     app_stop(self)
 
     return true
@@ -205,7 +206,11 @@ app_event :: proc(self: ^App)
         input_event(&self.input, event)
 
         for scene in scene_stack_next_below(&iter) {
-            if scene_event(scene, self, event) == false { break }
+            state := scene_layer_event(scene, self, event)
+
+            if state == false {
+                break
+            }
         }
     }
 
@@ -217,7 +222,7 @@ app_tick :: proc(self: ^App, delta_time: f32)
     iter := scene_stack_iter(&self.stack)
 
     for scene in scene_stack_next_below(&iter) {
-        scene_tick(scene, self, delta_time)
+        scene_layer_tick(scene, self, delta_time)
     }
 }
 
@@ -226,7 +231,7 @@ app_begin_frame :: proc(self: ^App, frame_time: f32)
     iter := scene_stack_iter(&self.stack)
 
     for scene in scene_stack_next_below(&iter) {
-        scene_begin_frame(scene, self, frame_time)
+        scene_layer_begin_frame(scene, self, frame_time)
     }
 }
 
@@ -235,6 +240,6 @@ app_end_frame :: proc(self: ^App, frame_time: f32)
     iter := scene_stack_iter(&self.stack)
 
     for scene in scene_stack_next_above(&iter) {
-        scene_end_frame(scene, self, frame_time)
+        scene_layer_end_frame(scene, self, frame_time)
     }
 }

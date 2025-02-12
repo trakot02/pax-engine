@@ -173,7 +173,7 @@ slot_table_find :: proc(self: ^Slot_Table($Val), ident: int) -> ^Val
         return &self.items[index - 1]
     }
 
-    return nil 
+    return nil
 }
 
 slot_table_iter :: proc(self: ^Slot_Table($Val)) -> Slot_Table_Iter(Val)

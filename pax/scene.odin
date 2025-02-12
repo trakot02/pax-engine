@@ -6,7 +6,7 @@ import "core:log"
 // Variables
 //
 
-SCENE := Scene {
+SCENE_LAYER := Scene_Layer {
     proc_start = proc(self: rawptr, app: ^App) -> bool {
         return true
     },
@@ -28,7 +28,7 @@ SCENE := Scene {
 // Definitions
 //
 
-Scene :: struct
+Scene_Layer :: struct
 {
     self: rawptr,
 
@@ -45,7 +45,7 @@ Scene :: struct
 Scene_Stack :: struct
 {
     // Dense array of scenes.
-    items: [dynamic]Scene,
+    items: [dynamic]Scene_Layer,
 }
 
 Scene_Stack_Iter :: struct
@@ -58,42 +58,42 @@ Scene_Stack_Iter :: struct
 // Functions
 //
 
-scene_start :: proc(self: ^Scene, app: ^App) -> bool
+scene_layer_start :: proc(self: ^Scene_Layer, app: ^App) -> bool
 {
     return self.proc_start(self.self, app)
 }
 
-scene_stop :: proc(self: ^Scene, app: ^App)
+scene_layer_stop :: proc(self: ^Scene_Layer, app: ^App)
 {
     self.proc_stop(self.self, app)
 }
 
-scene_enter :: proc(self: ^Scene, app: ^App)
+scene_layer_enter :: proc(self: ^Scene_Layer, app: ^App)
 {
     self.proc_enter(self.self, app)
 }
 
-scene_leave :: proc(self: ^Scene, app: ^App)
+scene_layer_leave :: proc(self: ^Scene_Layer, app: ^App)
 {
     self.proc_leave(self.self, app)
 }
 
-scene_event :: proc(self: ^Scene, app: ^App, event: Event) -> bool
+scene_layer_event :: proc(self: ^Scene_Layer, app: ^App, event: Event) -> bool
 {
     return self.proc_event(self.self, app, event)
 }
 
-scene_tick :: proc(self: ^Scene, app: ^App, delta_time: f32)
+scene_layer_tick :: proc(self: ^Scene_Layer, app: ^App, delta_time: f32)
 {
     self.proc_tick(self.self, app, delta_time)
 }
 
-scene_begin_frame :: proc(self: ^Scene, app: ^App, frame_time: f32)
+scene_layer_begin_frame :: proc(self: ^Scene_Layer, app: ^App, frame_time: f32)
 {
     self.proc_begin_frame(self.self, app, frame_time)
 }
 
-scene_end_frame :: proc(self: ^Scene, app: ^App, frame_time: f32)
+scene_layer_end_frame :: proc(self: ^Scene_Layer, app: ^App, frame_time: f32)
 {
     self.proc_end_frame(self.self, app, frame_time)
 }
@@ -101,7 +101,7 @@ scene_end_frame :: proc(self: ^Scene, app: ^App, frame_time: f32)
 scene_stack_init :: proc(allocator := context.allocator) -> Scene_Stack
 {
     return Scene_Stack {
-        items = make([dynamic]Scene, allocator)
+        items = make([dynamic]Scene_Layer, allocator)
     }
 }
 
@@ -122,7 +122,7 @@ scene_stack_clear :: proc(self: ^Scene_Stack)
     clear(&self.items)
 }
 
-scene_stack_insert :: proc(self: ^Scene_Stack, value: Scene) -> int
+scene_stack_insert :: proc(self: ^Scene_Stack, value: Scene_Layer) -> int
 {
     _, error := append(&self.items, value)
 
@@ -135,7 +135,7 @@ scene_stack_insert :: proc(self: ^Scene_Stack, value: Scene) -> int
     return len(self.items)
 }
 
-scene_stack_remove :: proc(self: ^Scene_Stack) -> (Scene, bool)
+scene_stack_remove :: proc(self: ^Scene_Stack) -> (Scene_Layer, bool)
 {
     count := len(self.items)
 
@@ -151,13 +151,13 @@ scene_stack_remove :: proc(self: ^Scene_Stack) -> (Scene, bool)
     return {}, false
 }
 
-scene_stack_find :: proc(self: ^Scene_Stack, ident: int) -> ^Scene
+scene_stack_find :: proc(self: ^Scene_Stack, ident: int) -> ^Scene_Layer
 {
     if ident > 0 && ident <= len(self.items) {
         return &self.items[ident - 1]
     }
 
-    return nil 
+    return nil
 }
 
 scene_stack_iter :: proc(self: ^Scene_Stack) -> Scene_Stack_Iter
@@ -167,7 +167,7 @@ scene_stack_iter :: proc(self: ^Scene_Stack) -> Scene_Stack_Iter
     }
 }
 
-scene_stack_next_above :: proc(self: ^Scene_Stack_Iter) -> (^Scene, int, bool)
+scene_stack_next_above :: proc(self: ^Scene_Stack_Iter) -> (^Scene_Layer, int, bool)
 {
     count := len(self.stack.items)
 
@@ -183,16 +183,16 @@ scene_stack_next_above :: proc(self: ^Scene_Stack_Iter) -> (^Scene, int, bool)
     return nil, 0, false
 }
 
-scene_stack_next_below :: proc(self: ^Scene_Stack_Iter) -> (^Scene, int, bool)
+scene_stack_next_below :: proc(self: ^Scene_Stack_Iter) -> (^Scene_Layer, int, bool)
 {
     count := len(self.stack.items)
 
-    if self.index >= 0 && self.index < count { 
+    if self.index >= 0 && self.index < count {
         ident := self.index + 1
         value := &self.stack.items[count - ident]
 
         self.index = ident
-    
+
         return value, ident, true
     }
 

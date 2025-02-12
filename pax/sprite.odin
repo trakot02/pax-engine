@@ -42,12 +42,13 @@ Sprite_Batch :: struct
     items: [SPRITE_BUFFER_SIZE]Sprite_Vertex,
 }
 
-animation_init :: proc(position: [2]int, dimension: [2]int, region: [2]int) -> Animation
+animation_init :: proc(delay: f32, position: [2]int, dimension: [2]int, region: [2]int) -> Animation
 {
     return Animation {
         position  = position,
         dimension = dimension,
         region    = region,
+        delay     = delay,
         count     = dimension.x / region.x,
     }
 }
@@ -64,7 +65,7 @@ animation_add_delay :: proc(self: ^Animation, delay: f32)
 
 animation_tick :: proc(self: ^Animation, delta_time: f32)
 {
-    self.timer += delta_time 
+    self.timer += delta_time
 
     if self.delay <= 0 { return }
 
@@ -103,38 +104,9 @@ sprite_batch_set_texture :: proc(self: ^Sprite_Batch, texture: ^Texture)
     self.texture = texture
 }
 
-sprite_batch_push :: proc(self: ^Sprite_Batch, sprite: Sprite, transform: Transform = {})  -> bool
+sprite_batch_begin :: proc(self: ^Sprite_Batch, render: ^Render_State)
 {
-    count := self.count + 6
-
-    if count >= len(self.items) {
-        return false
-    }
-
-    trans       := transform
-    trans.pivot *= sprite.dimension
-
-    self.items[self.count + 0].position = transform_vec2_f32(trans, {0, 0}) 
-    self.items[self.count + 1].position = transform_vec2_f32(trans, {0, sprite.dimension.y})
-    self.items[self.count + 2].position = transform_vec2_f32(trans, {sprite.dimension.x, 0})
-    self.items[self.count + 3].position = transform_vec2_f32(trans, {sprite.dimension.x, 0})
-    self.items[self.count + 4].position = transform_vec2_f32(trans, {0, sprite.dimension.y})
-    self.items[self.count + 5].position = transform_vec2_f32(trans, sprite.dimension.xy)
-
-    self.items[self.count + 0].texture = texture_get_relative(self.texture, sprite.frame.xy)
-    self.items[self.count + 1].texture = texture_get_relative(self.texture, sprite.frame.xy + {0, sprite.frame.w})
-    self.items[self.count + 2].texture = texture_get_relative(self.texture, sprite.frame.xy + {sprite.frame.z, 0})
-    self.items[self.count + 3].texture = texture_get_relative(self.texture, sprite.frame.xy + {sprite.frame.z, 0})
-    self.items[self.count + 4].texture = texture_get_relative(self.texture, sprite.frame.xy + {0, sprite.frame.w})
-    self.items[self.count + 5].texture = texture_get_relative(self.texture, sprite.frame.xy + sprite.frame.zw)
-
-    for index in 0 ..< 6 {
-        self.items[self.count + index].color = sprite.color
-    }
-
-    self.count = count
-
-    return true
+    self.texture = &render.white_texture
 }
 
 sprite_batch_flush :: proc(self: ^Sprite_Batch, render: ^Render_State)
@@ -144,7 +116,7 @@ sprite_batch_flush :: proc(self: ^Sprite_Batch, render: ^Render_State)
     bytes := count * size
 
     if bytes != 0 {
-        gl.BindVertexArray(u32(render.array))
+        gl.BindBuffer(gl.ARRAY_BUFFER, u32(render.buffer))
 
         gl.EnableVertexAttribArray(0)
         gl.EnableVertexAttribArray(1)
@@ -184,6 +156,40 @@ sprite_batch_flush :: proc(self: ^Sprite_Batch, render: ^Render_State)
     self.shader  = nil
     self.texture = nil
     self.view    = nil
+}
+
+sprite_batch_push :: proc(self: ^Sprite_Batch, sprite: Sprite, transform: Transform = {})  -> bool
+{
+    count := self.count + 6
+
+    if count >= len(self.items) {
+        return false
+    }
+
+    trans       := transform
+    trans.pivot *= sprite.dimension
+
+    self.items[self.count + 0].position = transform_vec2_f32(trans, {0, 0})
+    self.items[self.count + 1].position = transform_vec2_f32(trans, {0, sprite.dimension.y})
+    self.items[self.count + 2].position = transform_vec2_f32(trans, {sprite.dimension.x, 0})
+    self.items[self.count + 3].position = transform_vec2_f32(trans, {sprite.dimension.x, 0})
+    self.items[self.count + 4].position = transform_vec2_f32(trans, {0, sprite.dimension.y})
+    self.items[self.count + 5].position = transform_vec2_f32(trans, sprite.dimension.xy)
+
+    self.items[self.count + 0].texture = texture_get_relative(self.texture, sprite.frame.xy)
+    self.items[self.count + 1].texture = texture_get_relative(self.texture, sprite.frame.xy + {0, sprite.frame.w})
+    self.items[self.count + 2].texture = texture_get_relative(self.texture, sprite.frame.xy + {sprite.frame.z, 0})
+    self.items[self.count + 3].texture = texture_get_relative(self.texture, sprite.frame.xy + {sprite.frame.z, 0})
+    self.items[self.count + 4].texture = texture_get_relative(self.texture, sprite.frame.xy + {0, sprite.frame.w})
+    self.items[self.count + 5].texture = texture_get_relative(self.texture, sprite.frame.xy + sprite.frame.zw)
+
+    for index in 0 ..< 6 {
+        self.items[self.count + index].color = sprite.color
+    }
+
+    self.count = count
+
+    return true
 }
 
 sprite_shader :: proc() -> (Shader, bool)

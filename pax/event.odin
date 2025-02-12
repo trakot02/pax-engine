@@ -31,5 +31,8 @@ Window_Resize_Event :: struct
 
 Event :: union
 {
-    App_Close_Event, Mouse_Event, Keyboard_Event, Window_Resize_Event,
+    App_Close_Event,
+    Mouse_Event,
+    Keyboard_Event,
+    Window_Resize_Event,
 }

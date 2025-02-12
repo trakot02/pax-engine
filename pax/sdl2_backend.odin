@@ -64,7 +64,18 @@ SDL2_KEYBOARD_BUTTON := [512]Keyboard_Button {
     sdl.Scancode.NUM8 = .BTN_8,
     sdl.Scancode.NUM9 = .BTN_9,
 
+    sdl.Scancode.F1  = .BTN_F1,
+    sdl.Scancode.F2  = .BTN_F2,
+    sdl.Scancode.F3  = .BTN_F3,
+    sdl.Scancode.F4  = .BTN_F4,
+    sdl.Scancode.F5  = .BTN_F5,
+    sdl.Scancode.F6  = .BTN_F6,
+    sdl.Scancode.F7  = .BTN_F7,
+    sdl.Scancode.F8  = .BTN_F8,
+    sdl.Scancode.F9  = .BTN_F9,
+    sdl.Scancode.F10 = .BTN_F10,
     sdl.Scancode.F11 = .BTN_F11,
+    sdl.Scancode.F12 = .BTN_F12,
 }
 
 SDL2_KEYBOARD_BUTTON_TO_SCANCODE := [Keyboard_Button]sdl.Scancode {
@@ -111,7 +122,18 @@ SDL2_KEYBOARD_BUTTON_TO_SCANCODE := [Keyboard_Button]sdl.Scancode {
     .BTN_8 = .NUM8,
     .BTN_9 = .NUM9,
 
+    .BTN_F1  = .F1,
+    .BTN_F2  = .F2,
+    .BTN_F3  = .F3,
+    .BTN_F4  = .F4,
+    .BTN_F5  = .F5,
+    .BTN_F6  = .F6,
+    .BTN_F7  = .F7,
+    .BTN_F8  = .F8,
+    .BTN_F9  = .F9,
+    .BTN_F10 = .F10,
     .BTN_F11 = .F11,
+    .BTN_F12 = .F12,
 }
 
 SDL2_KEYBOARD_KEY_TO_KEYCODE := [Keyboard_Key]sdl.Keycode {
@@ -158,7 +180,18 @@ SDL2_KEYBOARD_KEY_TO_KEYCODE := [Keyboard_Key]sdl.Keycode {
     .KEY_8 = .NUM8,
     .KEY_9 = .NUM9,
 
+    .KEY_F1  = .F1,
+    .KEY_F2  = .F2,
+    .KEY_F3  = .F3,
+    .KEY_F4  = .F4,
+    .KEY_F5  = .F5,
+    .KEY_F6  = .F6,
+    .KEY_F7  = .F7,
+    .KEY_F8  = .F8,
+    .KEY_F9  = .F9,
+    .KEY_F10 = .F10,
     .KEY_F11 = .F11,
+    .KEY_F12 = .F12,
 }
 
 sdl2_main_window := sdl2_Window {}

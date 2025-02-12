@@ -1,8 +1,6 @@
 package demo
 
-import       "core:fmt"
-import       "core:log"
-import mathl "core:math/linalg"
+import "core:log"
 
 import "../pax"
 
